@@ -1,11 +1,5 @@
-import React from 'react'
+import { MingleMeshApp } from "./components/mingle-mesh-app"
 
-const App = () => {
-  return (
-    <div>
-      Mingle Mesh Chatting App!
-    </div>
-  )
+export default function App() {
+  return <MingleMeshApp />
 }
-
-export default App

@@ -1,0 +1,56 @@
+import { Check, CheckCheck } from "lucide-react"
+import { cn } from "../../lib/utils"
+import type { Conversation } from "../../lib/chat-data"
+
+interface ConversationItemProps {
+  conversation: Conversation
+  isSelected: boolean
+  onClick: () => void
+}
+
+export function ConversationItem({ conversation, isSelected, onClick }: ConversationItemProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 text-left",
+        isSelected ? "bg-[#3b82f6]/20" : "hover:bg-[#1f1f2e]",
+      )}
+    >
+      {/* avatar */}
+      <div className="relative flex-shrink-0">
+        <div className="w-12 h-12 rounded-full overflow-hidden">
+          <img
+            src={conversation.avatar || "/placeholder.svg"}
+            alt={conversation.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+        {conversation.isOnline && (
+          <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#22c55e] rounded-full border-2 border-[#1a1a24]" />
+        )}
+      </div>
+
+      {/* content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <span className="text-white font-medium truncate">{conversation.name}</span>
+          <span className="text-[#6b7280] text-xs flex-shrink-0">{conversation.time}</span>
+        </div>
+        <div className="flex items-center justify-between mt-0.5">
+          <span className="text-[#6b7280] text-sm truncate">{conversation.lastMessage}</span>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {conversation.messageStatus === "read" && <CheckCheck className="w-4 h-4 text-[#3b82f6]" />}
+            {conversation.messageStatus === "delivered" && <CheckCheck className="w-4 h-4 text-[#6b7280]" />}
+            {conversation.messageStatus === "sent" && <Check className="w-4 h-4 text-[#6b7280]" />}
+            {conversation.unreadCount && conversation.unreadCount > 0 && (
+              <div className="w-5 h-5 bg-[#3b82f6] rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-medium">{conversation.unreadCount}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </button>
+  )
+}
