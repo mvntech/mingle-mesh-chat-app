@@ -1,33 +1,84 @@
-import type React from "react"
-import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { Eye, EyeOff, Check } from "lucide-react"
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, Check, AlertCircle, Loader2 } from "lucide-react";
+import { gql } from "@apollo/client";
+import { useMutation } from "@apollo/client/react";
+
+const REGISTER_USER = gql`
+  mutation Register($username: String!, $email: String!, $password: String!) {
+    register(username: $username, email: $email, password: $password) {
+      token
+      user {
+        id
+        username
+        email
+      }
+    }
+  }
+`;
 
 export function SignUpPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
-    fullName: "",
+    username: "",
     email: "",
     password: "",
     confirmPassword: "",
-  })
-  const navigate = useNavigate()
+  });
+  const [validationError, setValidationError] = useState("");
+  const navigate = useNavigate();
+
+  const [register, { loading, error: mutationError }] = useMutation(
+    REGISTER_USER,
+    {
+      onCompleted: (data) => {
+        console.log("Registration successful", data);
+        navigate("/login");
+      },
+      onError: (error) => {
+        console.error("Registration error:", error);
+      },
+    }
+  );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
-  }
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (validationError) setValidationError("");
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    navigate("/")
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setValidationError("");
+
+    if (formData.password !== formData.confirmPassword) {
+      setValidationError("Passwords do not match");
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setValidationError("Password must be at least 8 characters");
+      return;
+    }
+
+    try {
+      await register({
+        variables: {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+        },
+      });
+    } catch (e) {
+      console.log("Error", e);
+    }
+  };
 
   const passwordRequirements = [
     { text: "At least 8 characters", met: formData.password.length >= 8 },
     { text: "Contains uppercase letter", met: /[A-Z]/.test(formData.password) },
     { text: "Contains number", met: /[0-9]/.test(formData.password) },
-  ]
+  ];
 
   return (
     <div className="min-h-screen bg-[#12121A] flex items-center justify-center p-4 py-8">
@@ -35,43 +86,68 @@ export function SignUpPage() {
         {/* logo */}
         <div className="flex flex-col items-center mb-6 md:mb-8">
           <div className="w-14 h-14 md:w-16 md:h-16 bg-[#0A0A0F] rounded-2xl flex items-center justify-center mb-3 md:mb-4">
-            <img src="/icon.png" alt="Mingle Mesh Icon" />
+            <img src="/icon.png" alt="Logo" />
           </div>
-          <h1 className="text-xl md:text-2xl font-bold text-white">Mingle Mesh</h1>
-          <p className="text-gray-400 text-sm mt-1">Connect with friends and family</p>
+          <h1 className="text-xl md:text-2xl font-bold text-white">
+            Mingle Mesh
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">
+            Connect with friends and family
+          </p>
         </div>
 
         {/* sign up card */}
-        <div className="bg-[#1A1A24] rounded-xl p-6 md:p-8">
-          <h2 className="text-lg md:text-xl font-semibold text-white mb-6 text-center">Create Account</h2>
+        <div className="bg-[#1A1A24] rounded-xl p-6 md:p-8 shadow-xl border border-[#2a2a35]">
+          <h2 className="text-lg md:text-xl font-semibold text-white mb-6 text-center">
+            Create Account
+          </h2>
+
+          {(mutationError || validationError) && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <p>
+                {validationError ||
+                  mutationError?.message ||
+                  "An error occurred during registration."}
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Full Name</label>
+              <label className="block text-sm text-gray-400 mb-2">
+                Username
+              </label>
               <input
                 type="text"
-                name="fullName"
-                value={formData.fullName}
+                name="username"
+                value={formData.username}
                 onChange={handleChange}
-                placeholder="Enter your full name"
-                className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
+                placeholder="Enter your username"
+                className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6] border border-transparent focus:border-transparent transition-all"
                 required
+                disabled={loading}
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Email Address</label>
+              <label className="block text-sm text-gray-400 mb-2">
+                Email Address
+              </label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Enter your email"
-                className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
+                className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6] border border-transparent focus:border-transparent transition-all"
                 required
+                disabled={loading}
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Password</label>
+              <label className="block text-sm text-gray-400 mb-2">
+                Password
+              </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -79,23 +155,42 @@ export function SignUpPage() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Create a password"
-                  className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
+                  className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6] border border-transparent focus:border-transparent transition-all"
                   required
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  disabled={loading}
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
               {formData.password && (
-                <div className="mt-2 space-y-1">
+                <div className="mt-3 space-y-1 bg-[#15151e] p-3 rounded-lg">
                   {passwordRequirements.map((req, index) => (
-                    <div key={index} className="flex items-center gap-2 text-xs">
-                      <Check className={`w-3 h-3 ${req.met ? "text-[#22c55e]" : "text-[#6b7280]"}`} />
-                      <span className={req.met ? "text-[#22c55e]" : "text-[#6b7280]"}>{req.text}</span>
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 text-xs"
+                    >
+                      <Check
+                        className={`w-3 h-3 ${
+                          req.met ? "text-[#22c55e]" : "text-[#6b7280]"
+                        }`}
+                      />
+                      <span
+                        className={
+                          req.met ? "text-[#22c55e]" : "text-[#6b7280]"
+                        }
+                      >
+                        {req.text}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -103,7 +198,9 @@ export function SignUpPage() {
             </div>
 
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Confirm Password</label>
+              <label className="block text-sm text-gray-400 mb-2">
+                Confirm Password
+              </label>
               <div className="relative">
                 <input
                   type={showConfirmPassword ? "text" : "password"}
@@ -111,28 +208,37 @@ export function SignUpPage() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   placeholder="Confirm your password"
-                  className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
+                  className={`w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 transition-all border border-transparent ${
+                    formData.confirmPassword &&
+                    formData.password !== formData.confirmPassword
+                      ? "focus:ring-red-500"
+                      : "focus:ring-[#3b82f6]"
+                  }`}
                   required
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  disabled={loading}
                 >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
-              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                <p className="text-xs text-[#ff2056] mt-1">Passwords do not match</p>
-              )}
             </div>
 
-            <div className="flex items-start gap-2">
+            <div className="flex items-start gap-2 pt-1">
               <input
                 type="checkbox"
                 id="terms"
-                className="w-4 h-4 mt-0.5 rounded checked:bg-[#3b82f6] checked:border-[#3b82f6] focus:ring-[#3b82f6]focus:ring-offset-0"
+                className="w-4 h-4 mt-0.5 rounded bg-[#1f1f2e] border-gray-600 checked:bg-[#3b82f6] checked:border-[#3b82f6] focus:ring-[#3b82f6] focus:ring-offset-0 focus:ring-offset-[#1A1A24]"
                 required
+                disabled={loading}
               />
               <label htmlFor="terms" className="text-sm text-gray-400">
                 {"I agree to the "}
@@ -148,9 +254,11 @@ export function SignUpPage() {
 
             <button
               type="submit"
-              className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white font-medium py-3 rounded-xl transition-colors mt-2"
+              disabled={loading}
+              className="w-full bg-[#3b82f6] hover:bg-[#2563eb] disabled:bg-[#3b82f6]/50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors mt-2 flex items-center justify-center gap-2"
             >
-              Create Account
+              {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+              {loading ? "Creating Account..." : "Create Account"}
             </button>
           </form>
 
@@ -161,7 +269,7 @@ export function SignUpPage() {
           </div>
 
           <div className="flex gap-3 md:gap-4">
-            <button className="flex-1 flex items-center justify-center gap-2 bg-[#1F1F2E] hover:bg-[#25253A] text-white py-3 rounded-xl transition-colors text-sm md:text-base">
+            <button className="flex-1 flex items-center justify-center gap-2 bg-[#1F1F2E] hover:bg-[#25253A] text-white py-3 rounded-xl transition-colors text-sm md:text-base border border-[#2a2a35] hover:border-[#3a3a4a]">
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
                   fill="currentColor"
@@ -182,7 +290,7 @@ export function SignUpPage() {
               </svg>
               <span className="hidden sm:inline">Google</span>
             </button>
-            <button className="flex-1 flex items-center justify-center gap-2 bg-[#1F1F2E] hover:bg-[#25253A] text-white py-3 rounded-xl transition-colors text-sm md:text-base">
+            <button className="flex-1 flex items-center justify-center gap-2 bg-[#1F1F2E] hover:bg-[#25253A] text-white py-3 rounded-xl transition-colors text-sm md:text-base border border-[#2a2a35] hover:border-[#3a3a4a]">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
               </svg>
@@ -192,12 +300,15 @@ export function SignUpPage() {
 
           <p className="text-center text-[#6b7280] mt-6 text-sm md:text-base">
             Already have an account?{" "}
-            <Link to="/login" className="text-[#3b82f6] hover:underline font-medium">
+            <Link
+              to="/login"
+              className="text-[#3b82f6] hover:underline font-medium"
+            >
               Sign In
             </Link>
           </p>
         </div>
       </div>
     </div>
-  )
+  );
 }
