@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Check, AlertCircle, Loader2 } from "lucide-react";
 import { gql } from "@apollo/client";
 import { useMutation } from "@apollo/client/react";
+import toast from "react-hot-toast";
 
 const REGISTER_USER = gql`
   mutation Register($username: String!, $email: String!, $password: String!) {
@@ -33,10 +34,12 @@ export function SignUpPage() {
     REGISTER_USER,
     {
       onCompleted: (data) => {
+        toast.success("Registration successful!")
         console.log("Registration successful", data);
         navigate("/login");
       },
       onError: (error) => {
+        toast.error("An error occurred")
         console.error("Registration error:", error);
       },
     }

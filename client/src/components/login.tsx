@@ -1,17 +1,82 @@
-import React, { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { Eye, EyeOff } from "lucide-react"
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
+import { gql } from "@apollo/client";
+import { useMutation } from "@apollo/client/react";
+import toast from "react-hot-toast";
+
+const LOGIN_USER = gql`
+  mutation Login($email: String!, $password: String!) {
+    login(email: $email, password: $password) {
+      token
+      user {
+        id
+        username
+        email
+      }
+    }
+  }
+`;
+
+interface LoginResponse {
+  login: {
+    token: string;
+    user: {
+      id: string;
+      username: string;
+      email: string;
+    };
+  };
+}
+
+interface LoginVariables {
+  email: string;
+  password: string;
+}
 
 export function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const navigate = useNavigate()
+  const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    navigate("/")
-  }
+  const [login, { loading, error: mutationError }] = useMutation<
+    LoginResponse,
+    LoginVariables
+  >(LOGIN_USER, {
+    onCompleted: (data) => {
+      toast.success(`Welcome back!`)
+      console.log("Login successful", data);
+      if (data.login.token) {
+        localStorage.setItem("token", data.login.token);
+      }
+      navigate("/");
+    },
+    onError: (error) => {
+      console.error("Login error:", error);
+      navigate("/login");
+    },
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await login({
+        variables: {
+          email: formData.email,
+          password: formData.password,
+        },
+      });
+    } catch (e) {
+      console.log("Error", e);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#12121A] flex items-center justify-center p-4 py-8">
@@ -19,78 +84,99 @@ export function LoginPage() {
         {/* logo */}
         <div className="flex flex-col items-center mb-6 md:mb-8">
           <div className="w-14 h-14 md:w-16 md:h-16 bg-[#0A0A0F] rounded-2xl flex items-center justify-center mb-3 md:mb-4">
-            <img src="/icon.png" alt="Mingle Mesh Icon" />
+            <img src="/icon.png" alt="Logo" />
           </div>
-          <h1 className="text-xl md:text-2xl font-bold text-white">Mingle Mesh</h1>
-          <p className="text-gray-400 text-sm mt-1">Connect with friends and family</p>
+          <h1 className="text-xl md:text-2xl font-bold text-white">
+            Mingle Mesh
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">
+            Connect with friends and family
+          </p>
         </div>
 
         {/* login card */}
-        <div className="bg-[#1A1A24] rounded-xl p-6 md:p-8">
-          <h2 className="text-lg md:text-xl font-semibold text-white mb-6 text-center">Welcome Back</h2>
+        <div className="bg-[#1A1A24] rounded-xl p-6 md:p-8 shadow-xl border border-[#2a2a35]">
+          <h2 className="text-lg md:text-xl font-semibold text-white mb-6 text-center">
+            Welcome
+          </h2>
+
+          {mutationError && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <p>{mutationError.message || "Invalid email or password."}</p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Email Address</label>
+              <label className="block text-sm text-gray-400 mb-2">
+                Email Address
+              </label>
               <input
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
                 placeholder="Enter your email"
-                className="w-full bg-[#1F1F2E] text-white placeholder-gray-500 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6] transition-all text-sm md:text-base"
+                className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6] border border-transparent focus:border-transparent transition-all"
                 required
+                disabled={loading}
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Password</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm text-gray-400">Password</label>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-[#3b82f6] hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
                   placeholder="Enter your password"
-                  className="w-full bg-[#1F1F2E] text-white placeholder-gray-500 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6] transition-all pr-12 text-sm md:text-base"
+                  className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6] border border-transparent focus:border-transparent transition-all"
                   required
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  disabled={loading}
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-[#2a2a4a] bg-[#16162a] checked:bg-[#3b82f6] checked:border-[#3b82f6] focus:ring-[#3b82f6] focus:ring-offset-0 transition-colors"
-                />
-                <span className="text-sm text-gray-400">Remember me</span>
-              </label>
-              <Link to="/forgot-password" className="text-sm text-[#3b82f6] hover:underline">
-                Forgot Password?
-              </Link>
-            </div>
-
             <button
               type="submit"
-              className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white font-medium py-3 rounded-xl transition-colors mt-2"
+              disabled={loading}
+              className="w-full bg-[#3b82f6] hover:bg-[#2563eb] disabled:bg-[#3b82f6]/50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors mt-2 flex items-center justify-center gap-2"
             >
-              Sign In
+              {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
           <div className="flex items-center gap-4 my-6">
             <div className="flex-1 h-px bg-[#2a2a4a]"></div>
-            <span className="text-sm text-gray-400">or continue with</span>
+            <span className="text-sm text-gray-400">or sign in with</span>
             <div className="flex-1 h-px bg-[#2a2a4a]"></div>
           </div>
 
           <div className="flex gap-3 md:gap-4">
-            <button className="flex-1 flex items-center justify-center gap-2 bg-[#1F1F2E] hover:bg-[#25253A] text-white py-3 rounded-xl transition-colors text-sm md:text-base">
+            <button className="flex-1 flex items-center justify-center gap-2 bg-[#1F1F2E] hover:bg-[#25253A] text-white py-3 rounded-xl transition-colors text-sm md:text-base border border-[#2a2a35] hover:border-[#3a3a4a]">
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
                   fill="currentColor"
@@ -111,7 +197,7 @@ export function LoginPage() {
               </svg>
               <span className="hidden sm:inline">Google</span>
             </button>
-            <button className="flex-1 flex items-center justify-center gap-2 bg-[#1F1F2E] hover:bg-[#25253A] text-white py-3 rounded-xl transition-colors text-sm md:text-base">
+            <button className="flex-1 flex items-center justify-center gap-2 bg-[#1F1F2E] hover:bg-[#25253A] text-white py-3 rounded-xl transition-colors text-sm md:text-base border border-[#2a2a35] hover:border-[#3a3a4a]">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
               </svg>
@@ -119,14 +205,17 @@ export function LoginPage() {
             </button>
           </div>
 
-          <p className="text-center text-gray-400 mt-6 text-sm md:text-base">
-            {"Don't have an account? "}
-            <Link to="/signup" className="text-[#3b82f6] hover:underline font-medium">
+          <p className="text-center text-[#6b7280] mt-6 text-sm md:text-base">
+            Don't have an account?{" "}
+            <Link
+              to="/signup"
+              className="text-[#3b82f6] hover:underline font-medium"
+            >
               Sign Up
             </Link>
           </p>
         </div>
       </div>
     </div>
-  )
+  );
 }
