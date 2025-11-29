@@ -54,13 +54,37 @@ const typeDefs = gql`
     me: User
     getUser(id: ID!): User
     getUsers(search: String): [User!]!
+
+    # chat queries
+    getChats: [Chat!]!
+    getChat(id: ID!): Chat
+
+    # message queries
+    getMessages(chatId: ID!, limit: Int, offset: Int): [Message!]!
   }
 
   type Mutation {
     # auth mutations
     register(username: String!, email: String!, password: String!): AuthPayload!
     login(email: String!, password: String!): AuthPayload!
-}
+
+    # chat mutations
+    createChat(
+      participantIds: [ID!]!
+      name: String
+      isGroupChat: Boolean
+    ): Chat!
+    addUserToChat(chatId: ID!, userId: ID!): Chat!
+    leaveChat(chatId: ID!): Chat!
+
+    # message mutations
+    sendMessage(chatId: ID!, content: String!): Message!
+    markAsRead(messageId: ID!): Message!
+
+    # user mutations
+    updateProfile(username: String, avatar: String): User!
+    updateOnlineStatus(isOnline: Boolean!): User!
+  }
 `;
 
 export default typeDefs;
