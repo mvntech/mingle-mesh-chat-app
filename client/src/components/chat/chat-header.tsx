@@ -1,4 +1,4 @@
-import type { Conversation } from "../../lib/chat-data"
+import type { Conversation } from "../../types/chat"
 
 interface ChatHeaderProps {
   conversation: Conversation
@@ -11,7 +11,7 @@ export function ChatHeader({ conversation }: ChatHeaderProps) {
         <div className="relative">
           <div className="w-12 h-12 rounded-full overflow-hidden">
             <img
-              src={conversation.avatar || "/placeholder.svg"}
+              src={conversation.avatar || "/dummy-user.jpeg"}
               alt={conversation.name}
               className="w-full h-full object-cover"
             />

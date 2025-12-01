@@ -1,9 +1,12 @@
 import express from "express";
 import { ApolloServer } from "apollo-server-express";
+import { AuthenticationError } from "apollo-server-express";
 import { createServer } from "http";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import { PubSub } from "graphql-subscriptions";
 import { Server } from "socket.io";
+import { WebSocketServer } from "ws";
+import { useServer } from "graphql-ws/use/ws";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -120,22 +123,10 @@ const context = async ({ req, connection }) => {
 // create graphql schema
 const schema = makeExecutableSchema({ typeDefs, resolvers });
 
-// create apollo server
+// create apollo server (no legacy subscriptions here)
 const apolloServer = new ApolloServer({
   schema,
   context,
-  subscriptions: {
-    onConnect: async (connectionParams) => {
-      const token = connectionParams.authToken;
-      if (!token) throw new AuthenticationError("Auth token required");
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id).select("-password");
-      if (!user) throw new AuthenticationError("User not found");
-
-      return { user, pubsub, io };
-    },
-  },
 });
 
 const io = new Server(httpServer, {
@@ -147,6 +138,35 @@ const io = new Server(httpServer, {
   pingInterval: 25000,
   pingTimeout: 60000,
 });
+
+// create a WebSocket server for graphql-ws protocol at the same /graphql path
+const wsServer = new WebSocketServer({
+  server: httpServer,
+  path: "/graphql",
+});
+
+// integrate graphql-ws server and provide a context factory that mirrors HTTP context
+useServer(
+  {
+    schema,
+    context: async (ctx) => {
+      const connectionParams = ctx.connectionParams || {};
+      const token = connectionParams.authToken;
+      if (!token) throw new AuthenticationError("Auth token required");
+
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.id).select("-password");
+        if (!user) throw new AuthenticationError("User not found");
+
+        return { user, pubsub, io, sanitizeHtml };
+      } catch (err) {
+        throw new AuthenticationError("Invalid token");
+      }
+    },
+  },
+  wsServer
+);
 
 // socket.io authentication middleware
 io.use(async (socket, next) => {

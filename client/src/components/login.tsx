@@ -51,6 +51,9 @@ export function LoginPage() {
       console.log("Login successful", data);
       if (data.login.token) {
         localStorage.setItem("token", data.login.token);
+        }
+        if (data.login.user?.id) {
+          localStorage.setItem("userId", data.login.user.id);
       }
       navigate("/");
     },

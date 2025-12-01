@@ -1,13 +1,13 @@
 import { cn } from "../../lib/utils"
-import type { Message } from "../../lib/chat-data"
+import { type ChatMessage } from "../../types/message"
 
 interface MessageBubbleProps {
-  message: Message
+  message: ChatMessage
 }
 
 export function MessageBubble({ message }: MessageBubbleProps) {
   return (
-    <div className={cn("flex flex-col max-w-[70%]", message.isOwn ? "ml-auto items-end" : "mr-auto items-start")}>
+    <div className={cn("flex flex-col", message.isOwn ? "ml-auto items-end" : "mr-auto items-start")}>
       <div
         className={cn(
           "px-4 py-3 rounded-2xl",

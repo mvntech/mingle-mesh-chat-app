@@ -1,6 +1,6 @@
 import { Check, CheckCheck } from "lucide-react"
 import { cn } from "../../lib/utils"
-import type { Conversation } from "../../lib/chat-data"
+import type { Conversation } from "../../types/chat"
 
 interface ConversationItemProps {
   conversation: Conversation
@@ -21,7 +21,7 @@ export function ConversationItem({ conversation, isSelected, onClick }: Conversa
       <div className="relative flex-shrink-0">
         <div className="w-12 h-12 rounded-full overflow-hidden">
           <img
-            src={conversation.avatar || "/placeholder.svg"}
+            src={conversation.avatar || "/dummy-user.jpeg"}
             alt={conversation.name}
             className="w-full h-full object-cover"
           />

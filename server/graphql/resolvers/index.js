@@ -229,18 +229,18 @@ const resolvers = {
 
       if (!chat) throw new UserInputError("Chat not found");
 
-      const safeMessage = DOMPurify.sanitize(message);
-      const message = await Message.create({
+      const safeContent = DOMPurify.sanitize(content);
+      const createdMessage = await Message.create({
         sender: user._id,
-        content: safeMessage,
+        content: safeContent,
         chat: chatId,
         readBy: [{ user: user._id, readAt: new Date() }],
       });
 
-      chat.lastMessage = message._id;
+      chat.lastMessage = createdMessage._id;
       await chat.save();
 
-      const populatedMessage = await Message.findById(message._id)
+      const populatedMessage = await Message.findById(createdMessage._id)
         .populate("sender")
         .populate("chat")
         .populate("readBy.user");
@@ -325,30 +325,35 @@ const resolvers = {
 
   Subscription: {
     messageAdded: {
-      subscribe: withFilter(async (parent, { chatId }, { pubsub, user }) => {
-        if (!user) throw new AuthenticationError("Not authenticated");
-        const chat = await Chat.findOne({
-          _id: chatId,
-          participants: { $in: [user._id] },
-        });
-        if (!chat) throw new AuthenticationError("Unauthorized chat access");
-
-        return pubsub.asyncIterator(`MESSAGE_ADDED_${chatId}`);
-      }),
+      subscribe: withFilter(
+        (parent, { chatId }, { pubsub, user }) => {
+          if (!user) throw new AuthenticationError("Not authenticated");
+          return pubsub.asyncIterator(`MESSAGE_ADDED_${chatId}`);
+        },
+        async (payload, variables, { user }) => {
+          const chat = await Chat.findOne({
+            _id: variables.chatId,
+            participants: { $in: [user._id] },
+          });
+          return !!chat;
+        }
+      ),
     },
 
     typingStatus: {
-      subscribe: async (parent, { chatId }, { pubsub, user }) => {
-        if (!user) throw new AuthenticationError("Not authenticated");
-
-        const chat = await Chat.findOne({
-          _id: chatId,
-          participants: { $in: [user._id] },
-        });
-        if (!chat) throw new AuthenticationError("Unauthorized chat access");
-
-        return pubsub.asyncIterator(`TYPING_${chatId}`);
-      },
+      subscribe: withFilter(
+        (parent, { chatId }, { pubsub, user }) => {
+          if (!user) throw new AuthenticationError("Not authenticated");
+          return pubsub.asyncIterator(`TYPING_${chatId}`);
+        },
+        async (payload, variables, { user }) => {
+          const chat = await Chat.findOne({
+            _id: variables.chatId,
+            participants: { $in: [user._id] },
+          });
+          return !!chat;
+        }
+      ),
     },
 
     userStatusChanged: {
@@ -375,6 +380,28 @@ const resolvers = {
         return pubsub.asyncIterator("CHAT_UPDATED");
       },
     },
+  },
+};
+
+resolvers.User = {
+  id: (user) => (user.id ? user.id : user._id ? user._id.toString() : null),
+  lastSeen: (user) => (user.lastSeen ? user.lastSeen.toISOString() : null),
+  createdAt: (user) => (user.createdAt ? user.createdAt.toISOString() : null),
+  updatedAt: (user) => (user.updatedAt ? user.updatedAt.toISOString() : null),
+};
+
+resolvers.Chat = {
+  id: (chat) => (chat.id ? chat.id : chat._id ? chat._id.toString() : null),
+  createdAt: (chat) => (chat.createdAt ? chat.createdAt.toISOString() : null),
+  updatedAt: (chat) => (chat.updatedAt ? chat.updatedAt.toISOString() : null),
+};
+
+resolvers.Message = {
+  id: (msg) => (msg.id ? msg.id : msg._id ? msg._id.toString() : null),
+  createdAt: (msg) => (msg.createdAt ? msg.createdAt.toISOString() : null),
+  updatedAt: (msg) => (msg.updatedAt ? msg.updatedAt.toISOString() : null),
+  sender: (msg) => {
+    return msg.sender;
   },
 };
 

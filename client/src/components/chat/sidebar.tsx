@@ -8,9 +8,15 @@ import {
 import { cn } from "../../lib/utils";
 import useLogout from "../../lib/logout";
 
+interface UserProfile {
+  username: string;
+  avatar?: string;
+}
+
 interface SidebarProps {
   activeNav: string;
   onNavChange: (nav: string) => void;
+  user?: UserProfile;
 }
 
 const navItems = [
@@ -20,13 +26,30 @@ const navItems = [
   { id: "settings", icon: Settings },
 ];
 
-export function Sidebar({ activeNav, onNavChange }: SidebarProps) {
+export function Sidebar({ activeNav, onNavChange, user }: SidebarProps) {
   const logout = useLogout();
   return (
     <div className="w-[100px] bg-[#12121a] flex flex-col items-center py-6 rounded-2xl m-3">
       {/* profile avatar */}
       <div className="mb-8">
         <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#3b82f6]">
+          {user?.avatar ? (
+            <img
+              src={user.avatar}
+              alt="Profile"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                e.currentTarget.nextElementSibling?.classList.remove("hidden");
+              }}
+            />
+          ) : (
+            <img
+              src="/dummy-user.jpeg"
+              alt="Profile"
+              className="w-full h-full object-cover"
+            />
+          )}
           <img
             src="/dummy-user.jpeg"
             alt="Profile"
