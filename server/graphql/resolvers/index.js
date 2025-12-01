@@ -4,6 +4,8 @@ import Chat from "../../models/Chat.js";
 import Message from "../../models/Message.js";
 import { generateToken } from "../../middleware/auth.js";
 import { AuthenticationError, UserInputError } from "apollo-server-express";
+import { withFilter } from "graphql-subscriptions";
+import DOMPurify from "isomorphic-dompurify";
 
 const resolvers = {
   Query: {
@@ -19,6 +21,9 @@ const resolvers = {
 
     getUsers: async (parent, { search }, { user }) => {
       if (!user) throw new AuthenticationError("Not authenticated");
+      if (search && search.length < 2) {
+        throw new UserInputError("Search term too short");
+      }
       const query = search
         ? {
             // searching parameters
@@ -131,14 +136,14 @@ const resolvers = {
 
       // convert all IDs to objectIds for consistent comparison
       const participantObjectIds = participantIds.map(
-        (id) => new mongoose.Schema.Types.ObjectId(id)
+        (id) => new mongoose.Types.ObjectId(id)
       );
       const userObjectId = user._id;
 
       const allParticipants = [...participantObjectIds, userObjectId];
       const uniqueParticipants = [
         ...new Set(allParticipants.map((id) => id.toString())),
-      ].map((id) => new mongoose.Schema.Types.ObjectId(id));
+      ].map((id) => new mongoose.Types.ObjectId(id));
 
       // check if direct chat already exists
       if (!isGroupChat) {
@@ -159,7 +164,7 @@ const resolvers = {
       }
 
       const chat = await Chat.create({
-        name: isGroupChat ? name : "Group Chat",
+        name: isGroupChat ? name : null,
         isGroupChat,
         participants: uniqueParticipants,
         groupAdmin: isGroupChat ? user._id : null,
@@ -180,6 +185,10 @@ const resolvers = {
         throw new UserInputError("Cannot add users to direct chat");
       if (chat.groupAdmin?.toString() !== user._id.toString()) {
         throw new AuthenticationError("Only group admin can add users");
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new UserInputError("Invalid userId");
       }
 
       if (!chat.participants.includes(userId)) {
@@ -220,9 +229,10 @@ const resolvers = {
 
       if (!chat) throw new UserInputError("Chat not found");
 
+      const safeMessage = DOMPurify.sanitize(message);
       const message = await Message.create({
         sender: user._id,
-        content,
+        content: safeMessage,
         chat: chatId,
         readBy: [{ user: user._id, readAt: new Date() }],
       });
@@ -239,6 +249,7 @@ const resolvers = {
       if (pubsub) {
         pubsub.publish(`MESSAGE_ADDED_${chatId}`, {
           messageAdded: populatedMessage,
+          chatId: chatId,
         });
       }
 
@@ -309,6 +320,60 @@ const resolvers = {
       }
 
       return user;
+    },
+  },
+
+  Subscription: {
+    messageAdded: {
+      subscribe: withFilter(async (parent, { chatId }, { pubsub, user }) => {
+        if (!user) throw new AuthenticationError("Not authenticated");
+        const chat = await Chat.findOne({
+          _id: chatId,
+          participants: { $in: [user._id] },
+        });
+        if (!chat) throw new AuthenticationError("Unauthorized chat access");
+
+        return pubsub.asyncIterator(`MESSAGE_ADDED_${chatId}`);
+      }),
+    },
+
+    typingStatus: {
+      subscribe: async (parent, { chatId }, { pubsub, user }) => {
+        if (!user) throw new AuthenticationError("Not authenticated");
+
+        const chat = await Chat.findOne({
+          _id: chatId,
+          participants: { $in: [user._id] },
+        });
+        if (!chat) throw new AuthenticationError("Unauthorized chat access");
+
+        return pubsub.asyncIterator(`TYPING_${chatId}`);
+      },
+    },
+
+    userStatusChanged: {
+      subscribe: withFilter(
+        (parent, args, { pubsub, user }) => {
+          if (!user) throw new AuthenticationError("Not authenticated");
+          return pubsub.asyncIterator("USER_STATUS_CHANGED");
+        },
+        async (payload, variables, { user }) => {
+          const chats = await Chat.find({
+            participants: { $in: [user._id] },
+          }).select("_id participants");
+
+          return chats.some((chat) =>
+            chat.participants.includes(payload.userStatusChanged._id)
+          );
+        }
+      ),
+    },
+
+    chatUpdated: {
+      subscribe: (parent, args, { pubsub, user }) => {
+        if (!user) throw new AuthenticationError("Not authenticated");
+        return pubsub.asyncIterator("CHAT_UPDATED");
+      },
     },
   },
 };

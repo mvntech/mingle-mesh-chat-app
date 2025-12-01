@@ -12,32 +12,30 @@ import connectDB from "./config/database.js";
 import { typeDefs, resolvers } from "./graphql/schema.js";
 import User from "./models/User.js";
 import jwt from "jsonwebtoken";
+import sanitizeHtml from "sanitize-html";
 
 dotenv.config();
 const app = express();
 const httpServer = createServer(app);
+const isProd = process.env.NODE_ENV === "production";
 
 // graphql subscriptions
-const pubsub = PubSub();
+const pubsub = new PubSub();
 
-// cors configuration
-const allowedOrigin = process.env.CLIENT_URL || "http://localhost:5173";
+// cors configuration for express and socket.io
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+const allowedOrigins = [CLIENT_URL];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (
-        origin.includes("localhost:5173") ||
-        origin.includes("127.0.0.1:5173")
-      ) {
-        return callback(null, true);
-      }
-      if (origin === allowedOrigin) {
-        return callback(null, true);
-      }
+      if (!origin)
+        return callback(new Error("Origin required for security"), false);
 
-      callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Blocked by CORS"), false);
     },
     credentials: true,
     methods: ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
@@ -52,42 +50,56 @@ app.use(
   })
 );
 
-// initialize socket.io with cors configuration
-const io = new Server(httpServer, {
-  cors: {
-    origin: function (origin, callback) {
-      callback(null, true);
-    },
-    methods: ["GET", "POST", "OPTIONS"],
-    credentials: true,
-    allowEIO3: true,
-    transports: ["websocket", "polling"],
-  },
-  allowEIO3: true,
-  pingInterval: 25000,
-  pingTimeout: 60000,
-});
-
-// helmet middleware after CORS (to avoid blocking options)
 app.use(
   helmet({
-    crossOriginEmbedderPolicy: false,
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: isProd
+      ? {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:"],
+            connectSrc: ["'self'", "ws:", "wss:"],
+          },
+        }
+      : false,
+    crossOriginEmbedderPolicy: isProd ? true : false,
     crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
 
 app.use(express.json());
 
-// connect to mongoDB
+// rate limiting
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+});
+app.use(globalLimiter);
+
+// rate-limiter for login and register
+const authLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  message: "Too many auth attempts. Try again later.",
+});
+app.use("/graphql", (req, res, next) => {
+  const body = req.body || {};
+  if (
+    body.query &&
+    (body.query.includes("login") || body.query.includes("register"))
+  ) {
+    return authLimiter(req, res, next);
+  }
+  next();
+});
+
+// connect to mongodb
 connectDB();
 
 // graphql context function
 const context = async ({ req, connection }) => {
-  if (connection) {
-    // websocket connection for subscriptions
-    return connection.context;
-  }
+  if (connection) return connection.context; // subscriptions
 
   // HTTP request
   let user = null;
@@ -102,7 +114,7 @@ const context = async ({ req, connection }) => {
     }
   }
 
-  return { user, pubsub, io };
+  return { user, pubsub, io, sanitizeHtml };
 };
 
 // create graphql schema
@@ -112,11 +124,34 @@ const schema = makeExecutableSchema({ typeDefs, resolvers });
 const apolloServer = new ApolloServer({
   schema,
   context,
+  subscriptions: {
+    onConnect: async (connectionParams) => {
+      const token = connectionParams.authToken;
+      if (!token) throw new AuthenticationError("Auth token required");
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id).select("-password");
+      if (!user) throw new AuthenticationError("User not found");
+
+      return { user, pubsub, io };
+    },
+  },
 });
 
-// socket.io connection handling
+const io = new Server(httpServer, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  pingInterval: 25000,
+  pingTimeout: 60000,
+});
+
+// socket.io authentication middleware
 io.use(async (socket, next) => {
   const token = socket.handshake.auth?.token;
+  if (!token) return next(new Error("Token required"));
 
   if (token) {
     try {
@@ -129,18 +164,20 @@ io.use(async (socket, next) => {
         await user.save();
         next();
       } else {
-        next(new Error("User not found"));
+        next(new Error("Authentication error: User not found"));
       }
     } catch (error) {
-      next(new Error("Authentication error"));
+      console.error("Socket Auth Error:", error.message);
+      next(new Error("Authentication error: Invalid token"));
     }
   } else {
-    next(new Error("Authentication error"));
+    next(new Error("Authentication error: Token required"));
   }
 });
 
+// socket.io connection handling
 io.on("connection", (socket) => {
-  console.log(`User connected: ${socket.user.username}`);
+  console.log(`User connected: ${socket.user.username} (ID: ${socket.userId})`);
 
   // join user's rooms (chats they're part of)
   socket.on("join-chats", async (chatIds) => {
@@ -153,16 +190,20 @@ io.on("connection", (socket) => {
   socket.on("typing", ({ chatId, isTyping }) => {
     socket.to(`chat-${chatId}`).emit("typing", {
       chatId,
-      user: socket.user,
+      user: { id: socket.userId, username: socket.user.username },
       isTyping,
     });
   });
 
   // handle new message via socket.io
   socket.on("send-message", async ({ chatId, content }) => {
+    if (!content || content.length === 0) return;
     socket.to(`chat-${chatId}`).emit("new-message", {
       chatId,
-      message: { content, sender: socket.user },
+      message: {
+        content,
+        sender: { id: socket.userId, username: socket.user.username },
+      },
     });
   });
 
@@ -196,10 +237,15 @@ const startServer = async () => {
     console.log(
       `Server ready at http://localhost:${PORT}${apolloServer.graphqlPath}`
     );
+    console.log(
+      `Subscriptions endpoint ready at ws://localhost:${PORT}${
+        apolloServer.subscriptionsPath || "/graphql"
+      }`
+    );
   });
 
   httpServer.on("error", (error) => {
-    console.error("Error: ", error);
+    console.error("HTTP Server Error: ", error);
     process.exit(1);
   });
 };

@@ -26,7 +26,7 @@ const typeDefs = gql`
   type Message {
     id: ID!
     sender: User!
-    message: String!
+    content: String!
     chat: Chat!
     readBy: [ReadBy!]!
     createdAt: String!
@@ -84,6 +84,13 @@ const typeDefs = gql`
     # user mutations
     updateProfile(username: String, avatar: String): User!
     updateOnlineStatus(isOnline: Boolean!): User!
+  }
+
+  type Subscription {
+    messageAdded(chatId: ID!): Message!
+    typingStatus(chatId: ID!): TypingIndicator!
+    userStatusChanged: User!
+    chatUpdated: Chat!
   }
 `;
 
