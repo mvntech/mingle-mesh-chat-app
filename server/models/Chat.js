@@ -1,11 +1,11 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const chatSchema = new mongoose.Schema(
   {
     name: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     isGroupChat: {
       type: Boolean,
@@ -14,29 +14,40 @@ const chatSchema = new mongoose.Schema(
     participants: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        ref: "User",
         required: true,
       },
     ],
     lastMessage: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Message',
+      ref: "Message",
     },
     groupAdmin: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
+    },
+    messageStatus: {
+      type: String,
+      default: "sent",
     },
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
-// index for faster queries
+chatSchema.virtual("unreadCount").get(function () {
+  return this._unreadCount || 0;
+});
+
+chatSchema.method("setUnreadCount", function (value) {
+  this._unreadCount = value;
+});
+
 chatSchema.index({ participants: 1 });
 chatSchema.index({ updatedAt: -1 });
 
-const Chat = mongoose.model('Chat', chatSchema);
-
+const Chat = mongoose.model("Chat", chatSchema);
 export default Chat;
-

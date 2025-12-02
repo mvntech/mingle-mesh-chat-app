@@ -53,8 +53,6 @@ export function ConversationList({
       lastMessage: "Tap to start chatting",
       time: "",
       isGroupChat: false,
-      messageStatus: "sent",
-      unreadCount: 0,
     })) || [];
 
   const isSearching = searchQuery.trim().length > 0;
@@ -88,7 +86,7 @@ export function ConversationList({
   return (
     <div className="w-[340px] bg-[#12121a] flex flex-col my-3 rounded-2xl overflow-hidden border border-[#1f1f2e]">
       {/* search bar */}
-      <div className="p-4 border-b border-[#1f1f2e]">
+      <div className="p-4">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6b7280]" />
           <input
@@ -126,32 +124,41 @@ export function ConversationList({
                 onClick={async () => {
                   try {
                     const { data: chatData } = await createChat({
-                      variables: { participantIds: [user.id], isGroupChat: false },
+                      variables: {
+                        participantIds: [user.id],
+                        isGroupChat: false,
+                      },
                     });
 
                     if (chatData?.createChat) {
                       const chat = chatData.createChat;
                       const conv: Conversation = {
                         id: chat.id,
-                        name: chat.name ||
+                        name:
+                          chat.name ||
                           (chat.participants && chat.participants[0]
                             ? chat.participants[0].username
                             : user.name),
-                        avatar: chat.participants && chat.participants[0]
-                          ? chat.participants[0].avatar
-                          : user.avatar,
+                        avatar:
+                          chat.participants && chat.participants[0]
+                            ? chat.participants[0].avatar
+                            : user.avatar,
                         isOnline:
                           chat.participants && chat.participants[0]
                             ? chat.participants[0].isOnline
                             : user.isOnline,
                         lastMessage: chat.lastMessage?.content || "",
                         time: chat.lastMessage
-                          ? new Date(chat.lastMessage.createdAt).toLocaleTimeString(
-                              "en-US",
-                              { hour: "numeric", minute: "2-digit" }
-                            )
+                          ? new Date(
+                              chat.lastMessage.createdAt
+                            ).toLocaleTimeString("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })
                           : "",
                         isGroupChat: chat.isGroupChat,
+                        messageStatus: chat.messageStatus,
+                        unreadCount: chat.unreadCount ?? 0,
                       };
                       onSelect(conv);
                       return;
@@ -170,20 +177,18 @@ export function ConversationList({
             {/* groups section */}
             {groups.length > 0 && (
               <div className="mb-4">
-                <div className="px-2 mb-2">
-                  <h3 className="text-[#6b7280] text-xs font-semibold uppercase tracking-wider px-2">
-                    Groups
-                  </h3>
-                </div>
-                <div className="space-y-1">
-                  {groups.map((group) => (
-                    <ConversationItem
-                      key={group.id}
-                      conversation={group}
-                      isSelected={selectedId === group.id}
-                      onClick={() => onSelect(group)}
-                    />
-                  ))}
+                <div className="bg-[#1a1a24] rounded-xl p-3">
+                  <h3 className="text-white font-semibold mb-3 px-2">Groups</h3>
+                  <div className="space-y-1">
+                    {groups.map((group) => (
+                      <ConversationItem
+                        key={group.id}
+                        conversation={group}
+                        isSelected={selectedId === group.id}
+                        onClick={() => onSelect(group)}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -191,20 +196,20 @@ export function ConversationList({
             {/* contacts section */}
             {contacts.length > 0 && (
               <div>
-                <div>
-                  <h3 className="text-[#6b7280] text-xs font-semibold uppercase tracking-wider px-4 py-2">
+                <div className="bg-[#1a1a24] rounded-xl p-3">
+                  <h3 className="text-white font-semibold mb-3 px-2">
                     Contacts
                   </h3>
-                </div>
-                <div className="space-y-1">
-                  {contacts.map((contact) => (
-                    <ConversationItem
-                      key={contact.id}
-                      conversation={contact}
-                      isSelected={selectedId === contact.id}
-                      onClick={() => onSelect(contact)}
-                    />
-                  ))}
+                  <div className="space-y-1">
+                    {contacts.map((contact) => (
+                      <ConversationItem
+                        key={contact.id}
+                        conversation={contact}
+                        isSelected={selectedId === contact.id}
+                        onClick={() => onSelect(contact)}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

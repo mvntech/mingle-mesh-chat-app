@@ -1,17 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "./chat/sidebar";
 import { ConversationList } from "./chat/conversation-list";
 import { ChatView } from "./chat/chat-view";
 import { type Conversation } from "../types/chat";
-import { useQuery } from "@apollo/client/react";
+import { useQuery, useApolloClient } from "@apollo/client/react";
 import { GET_ME } from "../queries/getMe";
 import { GET_CHATS } from "../queries/getChats";
 import { MessageCircle } from "lucide-react";
 import type { GetMeData } from "../types/user";
+import createSocket from "../lib/socket";
 
 export function MingleMeshApp() {
   const [activeNav, setActiveNav] = useState<string>("home");
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [selectedConversation, setSelectedConversation] =
+    useState<Conversation | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { data, loading: chatsLoading } = useQuery(GET_CHATS);
   const { data: userData } = useQuery<GetMeData>(GET_ME);
@@ -19,7 +21,9 @@ export function MingleMeshApp() {
 
   const chats: Conversation[] = data
     ? data.getChats.map((chat: any) => {
-        const other = chat.participants.find((p: any) => p.id !== currentUserId) || chat.participants[0];
+        const other =
+          chat.participants.find((p: any) => p.id !== currentUserId) ||
+          chat.participants[0];
 
         return {
           id: chat.id,
@@ -34,14 +38,20 @@ export function MingleMeshApp() {
               })
             : "",
           isGroupChat: chat.isGroupChat,
+          messageStatus: chat.messageStatus,
+          unreadCount: chat.unreadCount ?? 0,
         };
       })
     : [];
 
   return (
-    <div className="flex h-screen bg-[#0a0a0f] overflow-hidden font-sans">  
-      <Sidebar activeNav={activeNav} onNavChange={setActiveNav} user={userData?.me} />
-      
+    <div className="flex h-screen bg-[#0a0a0f] overflow-hidden font-sans">
+      <Sidebar
+        activeNav={activeNav}
+        onNavChange={setActiveNav}
+        user={userData?.me}
+      />
+
       <ConversationList
         groups={chats.filter((chat) => chat.isGroupChat)}
         contacts={chats.filter((chat) => !chat.isGroupChat)}
@@ -54,15 +64,106 @@ export function MingleMeshApp() {
 
       {/* conditional rendering */}
       {selectedConversation ? (
-        <ChatView conversation={selectedConversation} currentUserId={currentUserId} />
+        <ChatView
+          conversation={selectedConversation}
+          currentUserId={currentUserId}
+        />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0a0f] text-[#6b7280]">
-            <div className="w-20 h-20 bg-[#1f1f2e] rounded-full flex items-center justify-center mb-4">
-                <MessageCircle className="w-10 h-10" />
-            </div>
-            <p>Select a conversation to start messaging</p>
+          <div className="w-20 h-20 bg-[#1f1f2e] rounded-full flex items-center justify-center mb-4">
+            <MessageCircle className="w-10 h-10" />
+          </div>
+          <p>Select a conversation to start messaging</p>
         </div>
       )}
     </div>
   );
+}
+
+// socket setup and real-time handlers
+export function MingleMeshAppWrapper() {
+  const client = useApolloClient();
+  const { data: userData } = useQuery<GetMeData>(GET_ME);
+  const currentUserId = userData?.me?.id ?? localStorage.getItem("userId");
+  const { data } = useQuery(GET_CHATS);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const socket = createSocket();
+
+    const joinRooms = () => {
+      const chatIds = (data?.getChats || []).map((c: any) => c.id);
+      if (chatIds.length > 0) {
+        socket.emit("join-chats", chatIds);
+      }
+    };
+
+    socket.on("connect", () => {
+      joinRooms();
+    });
+
+    socket.on("message-read", (payload: any) => {
+      try {
+        const { chatId, messageId, readBy, userId } = payload;
+        try {
+          const messageIdent = client.cache.identify({
+            __typename: "Message",
+            id: messageId,
+          });
+          if (messageIdent) {
+            client.cache.modify({
+              id: messageIdent,
+              fields: {
+                readBy() {
+                  return (readBy || []).map((r: any) => ({
+                    __typename: "ReadBy",
+                    user: { __typename: "User", id: r.user?.id || r.user?._id },
+                    readAt: r.readAt,
+                  }));
+                },
+              },
+            });
+          }
+        } catch (err) {
+          console.error("Failed to update message readBy in cache:", err);
+        }
+
+        if (String(userId) === String(currentUserId) && chatId) {
+          try {
+            const chatIdent = client.cache.identify({
+              __typename: "Chat",
+              id: chatId,
+            });
+            if (chatIdent) {
+              client.cache.modify({
+                id: chatIdent,
+                fields: {
+                  unreadCount(prev = 0) {
+                    return Math.max(0, prev - 1);
+                  },
+                },
+              });
+            }
+          } catch (err) {
+            console.error("Failed to update chat unreadCount in cache:", err);
+          }
+        }
+      } catch (err) {
+        console.error("message-read handler error:", err);
+      }
+    });
+
+    // if chats change, re-join rooms
+    const stop = () => {
+      socket.off("message-read");
+      socket.off("connect");
+      try {
+        socket.disconnect();
+      } catch (e) {}
+    };
+
+    return stop;
+  }, [client, currentUserId, data]);
+
+  return <MingleMeshApp />;
 }

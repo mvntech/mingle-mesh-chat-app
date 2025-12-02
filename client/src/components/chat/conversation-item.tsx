@@ -1,20 +1,24 @@
-import { Check, CheckCheck } from "lucide-react"
-import { cn } from "../../lib/utils"
-import type { Conversation } from "../../types/chat"
+import { Check, CheckCheck } from "lucide-react";
+import { cn } from "../../lib/utils";
+import type { Conversation } from "../../types/chat";
 
 interface ConversationItemProps {
-  conversation: Conversation
-  isSelected: boolean
-  onClick: () => void
+  conversation: Conversation;
+  isSelected: boolean;
+  onClick: () => void;
 }
 
-export function ConversationItem({ conversation, isSelected, onClick }: ConversationItemProps) {
+export function ConversationItem({
+  conversation,
+  isSelected,
+  onClick,
+}: ConversationItemProps) {
   return (
     <button
       onClick={onClick}
       className={cn(
         "w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 text-left",
-        isSelected ? "bg-[#3b82f6]/20" : "hover:bg-[#1f1f2e]",
+        isSelected ? "bg-[#3b82f6]/20" : "hover:bg-[#1f1f2e]"
       )}
     >
       {/* avatar */}
@@ -34,23 +38,40 @@ export function ConversationItem({ conversation, isSelected, onClick }: Conversa
       {/* content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <span className="text-white font-medium truncate">{conversation.name}</span>
-          <span className="text-[#6b7280] text-xs flex-shrink-0">{conversation.time}</span>
+          <span className="text-white font-medium truncate">
+            {conversation.name}
+          </span>
+          <span className="text-[#6b7280] text-xs flex-shrink-0">
+            {conversation.time}
+          </span>
         </div>
         <div className="flex items-center justify-between mt-0.5">
-          <span className="text-[#6b7280] text-sm truncate">{conversation.lastMessage}</span>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {conversation.messageStatus === "read" && <CheckCheck className="w-4 h-4 text-[#3b82f6]" />}
-            {conversation.messageStatus === "delivered" && <CheckCheck className="w-4 h-4 text-[#6b7280]" />}
-            {conversation.messageStatus === "sent" && <Check className="w-4 h-4 text-[#6b7280]" />}
-            {conversation.unreadCount && conversation.unreadCount > 0 && (
+          <span className="text-[#6b7280] text-sm truncate">
+            {conversation.lastMessage}
+          </span>
+          <div className="flex items-center flex-shrink-0">
+            {(conversation.unreadCount ?? 0) > 0 ? (
               <div className="w-5 h-5 bg-[#3b82f6] rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-medium">{conversation.unreadCount}</span>
+                <span className="text-white text-xs font-medium">
+                  {conversation.unreadCount}
+                </span>
               </div>
+            ) : (
+              <>
+                {conversation.messageStatus === "read" && (
+                  <CheckCheck className="w-5 h-5 text-[#3b82f6]" />
+                )}
+                {conversation.messageStatus === "delivered" && (
+                  <CheckCheck className="w-5 h-5 text-[#6b7280]" />
+                )}
+                {conversation.messageStatus === "sent" && (
+                  <Check className="w-5 h-5 text-[#6b7280]" />
+                )}
+              </>
             )}
           </div>
         </div>
       </div>
     </button>
-  )
+  );
 }

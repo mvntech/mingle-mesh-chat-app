@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { MingleMeshApp } from "./components/mingle-mesh-app";
+import { MingleMeshAppWrapper as MingleMeshApp } from "./components/mingle-mesh-app";
 import { SignUpPage } from "./components/sign-up";
 import { LoginPage } from "./components/login";
 import ProtectedRoute from "./lib/protected-routes";

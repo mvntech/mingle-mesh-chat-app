@@ -19,6 +19,8 @@ const typeDefs = gql`
     participants: [User!]!
     lastMessage: Message
     groupAdmin: User
+    messageStatus: String
+    unreadCount: Int!
     createdAt: String!
     updatedAt: String!
   }

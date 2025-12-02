@@ -16,6 +16,8 @@ export const GET_CHATS = gql`
         content
         createdAt
       }
+      messageStatus
+      unreadCount
     }
   }
 `;

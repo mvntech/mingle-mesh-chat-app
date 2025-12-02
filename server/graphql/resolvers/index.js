@@ -264,7 +264,7 @@ const resolvers = {
       return populatedMessage;
     },
 
-    markAsRead: async (parent, { messageId }, { user }) => {
+    markAsRead: async (parent, { messageId }, { user, io }) => {
       if (!user) throw new AuthenticationError("Not authenticated");
 
       const message = await Message.findById(messageId);
@@ -279,10 +279,22 @@ const resolvers = {
         await message.save();
       }
 
-      return await Message.findById(messageId)
+      const populatedMessage = await Message.findById(messageId)
         .populate("sender")
         .populate("chat")
         .populate("readBy.user");
+
+      // Emit socket.io event to notify other participants
+      if (io && message.chat) {
+        io.to(`chat-${message.chat}`).emit("message-read", {
+          chatId: message.chat.toString(),
+          messageId: message._id.toString(),
+          userId: user._id.toString(),
+          readBy: populatedMessage.readBy,
+        });
+      }
+
+      return populatedMessage;
     },
 
     updateProfile: async (parent, { username, avatar }, { user }) => {
@@ -394,6 +406,72 @@ resolvers.Chat = {
   id: (chat) => (chat.id ? chat.id : chat._id ? chat._id.toString() : null),
   createdAt: (chat) => (chat.createdAt ? chat.createdAt.toISOString() : null),
   updatedAt: (chat) => (chat.updatedAt ? chat.updatedAt.toISOString() : null),
+  messageStatus: async (chat, args, { user }) => {
+    try {
+      let chatDoc = chat;
+      if (!chatDoc.participants) {
+        chatDoc = await Chat.findById(chat._id).populate("participants");
+      }
+
+      const lastMessageId = chatDoc.lastMessage?._id
+        ? chatDoc.lastMessage._id
+        : chatDoc.lastMessage;
+
+      if (!lastMessageId) return chatDoc.messageStatus || "sent";
+
+      const lastMsg = await Message.findById(lastMessageId)
+        .populate("readBy.user")
+        .populate("sender");
+
+      if (!lastMsg) return chatDoc.messageStatus || "sent";
+
+      const participantIds = (chatDoc.participants || []).map((p) =>
+        p._id ? p._id.toString() : p.toString()
+      );
+
+      const senderId = lastMsg.sender?._id
+        ? lastMsg.sender._id.toString()
+        : lastMsg.sender?.toString();
+
+      const readUserIds = (lastMsg.readBy || [])
+        .map((r) =>
+          r.user
+            ? r.user._id
+              ? r.user._id.toString()
+              : r.user.toString()
+            : null
+        )
+        .filter(Boolean);
+
+      const otherParticipantIds = participantIds.filter(
+        (id) => id !== senderId
+      );
+
+      const allRead =
+        otherParticipantIds.length > 0 &&
+        otherParticipantIds.every((id) => readUserIds.includes(id));
+      if (allRead) return "read";
+
+      if (readUserIds.length > 0) return "delivered";
+
+      return "sent";
+    } catch (err) {
+      return chat.messageStatus || "sent";
+    }
+  },
+  unreadCount: async (chat, args, { user }) => {
+    if (!user) return 0;
+    try {
+      const count = await Message.countDocuments({
+        chat: chat._id,
+        sender: { $ne: user._id },
+        "readBy.user": { $ne: user._id },
+      });
+      return count || 0;
+    } catch (err) {
+      return 0;
+    }
+  },
 };
 
 resolvers.Message = {

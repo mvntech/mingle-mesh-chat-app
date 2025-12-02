@@ -6,5 +6,6 @@ export interface Conversation {
   lastMessage?: string | null;
   time?: string | null;
   unreadCount?: number;
+  messageStatus?: "sent" | "delivered" | "read";
   isGroupChat: boolean;
 }
