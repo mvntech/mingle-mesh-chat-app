@@ -1,9 +1,55 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
+import { useMutation } from "@apollo/client/react";
+import { LOGIN_USER } from "../mutations/login"
+import type { LoginVariables, LoginResponse } from "../types/auth.ts";
+import toast from "react-hot-toast";
 
 export function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
+    const [formData, setFormData] = useState({
+        email: "",
+        password: "",
+    });
+    const navigate = useNavigate();
+
+    const [login, { loading, error: mutationError }] = useMutation<LoginResponse, LoginVariables>(
+        LOGIN_USER, {
+        onCompleted: (data) => {
+            toast.success(`Welcome back!`)
+            console.log("Login successful", data);
+            if (data.login.token) {
+                localStorage.setItem("token", data.login.token);
+            }
+            if (data.login.user?.id) {
+                localStorage.setItem("userId", data.login.user.id);
+            }
+            navigate("/");
+        },
+        onError: (error) => {
+            console.error("Login error:", error);
+            navigate("/login");
+        },
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await login({
+                variables: {
+                    email: formData.email,
+                    password: formData.password,
+                },
+            });
+        } catch (e) {
+            console.log("Error", e);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#12121A] flex items-center justify-center p-4 py-8">
@@ -26,7 +72,14 @@ export function LoginPage() {
                         Welcome Back
                     </h2>
 
-                    <form className="space-y-4">
+                    {mutationError && (
+                        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <p>{mutationError.message || "Invalid email or password."}</p>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label className="block text-sm text-gray-400 mb-2">
                                 Email Address
@@ -34,9 +87,12 @@ export function LoginPage() {
                             <input
                                 type="email"
                                 name="email"
+                                value={formData.email}
+                                onChange={handleChange}
                                 placeholder="Enter your email"
                                 className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6] border border-transparent focus:border-transparent transition-all"
                                 required
+                                disabled={loading}
                             />
                         </div>
                         <div>
@@ -53,14 +109,19 @@ export function LoginPage() {
                                 <input
                                     type={showPassword ? "text" : "password"}
                                     name="password"
+                                    value={formData.password}
+                                    onChange={handleChange}
                                     placeholder="Enter your password"
                                     className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6] border border-transparent focus:border-transparent transition-all"
                                     required
+                                    disabled={loading}
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors">
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                                    disabled={loading}
+                                >
                                     {showPassword ? (
                                         <EyeOff className="w-5 h-5" />
                                     ) : (
@@ -72,8 +133,11 @@ export function LoginPage() {
 
                         <button
                             type="submit"
-                            className="w-full bg-[#3b82f6] hover:bg-[#2563eb] disabled:bg-[#3b82f6]/50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors mt-2 flex items-center justify-center gap-2">
-                            Sign In
+                            disabled={loading}
+                            className="w-full bg-[#3b82f6] hover:bg-[#2563eb] disabled:bg-[#3b82f6]/50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors mt-2 flex items-center justify-center gap-2"
+                        >
+                            {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+                            {loading ? "Signing in..." : "Sign In"}
                         </button>
                     </form>
 

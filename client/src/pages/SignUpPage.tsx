@@ -1,9 +1,71 @@
-import { useState    } from "react";
-import { Link } from "react-router-dom";
-import {Eye, EyeOff} from "lucide-react";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, Check, AlertCircle, Loader2 } from "lucide-react";
+import { useMutation } from "@apollo/client/react";
+import { REGISTER_USER } from "../mutations/register";
+import type { RegisterVariables, RegisterResponse } from "../types/auth.ts";
+import toast from "react-hot-toast";
 
 export function SignUpPage() {
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [formData, setFormData] = useState({
+        username: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+    });
+    const [validationError, setValidationError] = useState("");
+    const navigate = useNavigate();
+
+    const [register, { loading, error: mutationError }] = useMutation<RegisterResponse, RegisterVariables>(
+        REGISTER_USER, {
+            onCompleted: (data) => {
+                toast.success("Registration successful!")
+                console.log("Registration successful", data);
+                navigate("/login");
+            },
+            onError: (error) => {
+                toast.error("An error occurred")
+                console.error("Registration error:", error);
+            },
+        }
+    );
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+        if (validationError) setValidationError("");
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setValidationError("");
+        if (formData.password !== formData.confirmPassword) {
+            setValidationError("Passwords do not match");
+            return;
+        }
+        if (formData.password.length < 8) {
+            setValidationError("Password must be at least 8 characters");
+            return;
+        }
+        try {
+            await register({
+                variables: {
+                    username: formData.username,
+                    email: formData.email,
+                    password: formData.password,
+                },
+            });
+        } catch (e) {
+            console.log("Error", e);
+        }
+    };
+
+    const passwordRequirements = [
+        { text: "At least 8 characters", met: formData.password.length >= 8 },
+        { text: "Contains uppercase letter", met: /[A-Z]/.test(formData.password) },
+        { text: "Contains number", met: /[0-9]/.test(formData.password) },
+    ];
 
     return (
         <div className="min-h-screen bg-[#12121A] flex items-center justify-center p-4 py-8">
@@ -26,7 +88,18 @@ export function SignUpPage() {
                         Create an Account
                     </h2>
 
-                    <form className="space-y-4">
+                    {(mutationError || validationError) && (
+                        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <p>
+                                {validationError ||
+                                    mutationError?.message ||
+                                    "An error occurred during registration."}
+                            </p>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label className="block text-sm text-gray-400 mb-2">
                                 Username
@@ -34,9 +107,12 @@ export function SignUpPage() {
                             <input
                                 type="text"
                                 name="username"
+                                value={formData.username}
+                                onChange={handleChange}
                                 placeholder="Enter your username"
                                 className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6] border border-transparent focus:border-transparent transition-all"
                                 required
+                                disabled={loading}
                             />
                         </div>
                         <div>
@@ -46,9 +122,12 @@ export function SignUpPage() {
                             <input
                                 type="email"
                                 name="email"
+                                value={formData.email}
+                                onChange={handleChange}
                                 placeholder="Enter your email"
                                 className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6] border border-transparent focus:border-transparent transition-all"
                                 required
+                                disabled={loading}
                             />
                         </div>
                         <div>
@@ -59,14 +138,19 @@ export function SignUpPage() {
                                 <input
                                     type={showPassword ? "text" : "password"}
                                     name="password"
+                                    value={formData.password}
+                                    onChange={handleChange}
                                     placeholder="Create a password"
                                     className="w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6] border border-transparent focus:border-transparent transition-all"
                                     required
+                                    disabled={loading}
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors">
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                                    disabled={loading}
+                                >
                                     {showPassword ? (
                                         <EyeOff className="w-5 h-5" />
                                     ) : (
@@ -74,6 +158,29 @@ export function SignUpPage() {
                                     )}
                                 </button>
                             </div>
+                            {formData.password && (
+                                <div className="mt-3 space-y-1 bg-[#15151e] p-3 rounded-lg">
+                                    {passwordRequirements.map((req, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center gap-2 text-xs"
+                                        >
+                                            <Check
+                                                className={`w-3 h-3 ${
+                                                    req.met ? "text-[#22c55e]" : "text-[#6b7280]"
+                                                }`}
+                                            />
+                                            <span
+                                                className={
+                                                    req.met ? "text-[#22c55e]" : "text-[#6b7280]"
+                                                }
+                                            >
+                        {req.text}
+                      </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <div>
@@ -82,14 +189,31 @@ export function SignUpPage() {
                             </label>
                             <div className="relative">
                                 <input
+                                    type={showConfirmPassword ? "text" : "password"}
                                     name="confirmPassword"
+                                    value={formData.confirmPassword}
+                                    onChange={handleChange}
                                     placeholder="Confirm your password"
-                                    className={"w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 transition-all border border-transparent"}
+                                    className={`w-full bg-[#1f1f2e] text-white placeholder-[#6b7280] px-4 py-3 rounded-xl focus:outline-none focus:ring-2 transition-all border border-transparent ${
+                                        formData.confirmPassword &&
+                                        formData.password !== formData.confirmPassword
+                                            ? "focus:ring-red-500"
+                                            : "focus:ring-[#3b82f6]"
+                                    }`}
                                     required
+                                    disabled={loading}
                                 />
                                 <button
                                     type="button"
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors">
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                                    disabled={loading}
+                                >
+                                    {showConfirmPassword ? (
+                                        <EyeOff className="w-5 h-5" />
+                                    ) : (
+                                        <Eye className="w-5 h-5" />
+                                    )}
                                 </button>
                             </div>
                         </div>
@@ -100,6 +224,7 @@ export function SignUpPage() {
                                 id="terms"
                                 className="w-4 h-4 mt-0.5 rounded bg-[#1f1f2e] border-gray-600 checked:bg-[#3b82f6] checked:border-[#3b82f6] focus:ring-[#3b82f6] focus:ring-offset-0 focus:ring-offset-[#1A1A24]"
                                 required
+                                disabled={loading}
                             />
                             <label htmlFor="terms" className="text-sm text-gray-400">
                                 {"I agree to the "}
@@ -115,8 +240,11 @@ export function SignUpPage() {
 
                         <button
                             type="submit"
-                            className="w-full bg-[#3b82f6] hover:bg-[#2563eb] disabled:bg-[#3b82f6]/50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors mt-2 flex items-center justify-center gap-2">
-                            Create Account
+                            disabled={loading}
+                            className="w-full bg-[#3b82f6] hover:bg-[#2563eb] disabled:bg-[#3b82f6]/50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors mt-2 flex items-center justify-center gap-2"
+                        >
+                            {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+                            {loading ? "Creating Account..." : "Create Account"}
                         </button>
                     </form>
 
