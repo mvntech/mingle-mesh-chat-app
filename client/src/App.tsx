@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { MingleMeshChat } from "./pages/MingleMeshChat";
+import { MingleMeshAppWrapper as MingleMeshChat } from "./pages/MingleMeshChat";
 import { SignUpPage } from "./pages/SignUpPage";
 import { LoginPage } from "./pages/LoginPage";
-import ProtectedRoute from "./utils/protected-route";
+import ProtectedRoute from "./lib/protected-route";
 import { Toaster } from "react-hot-toast";
 
 export default function App() {
