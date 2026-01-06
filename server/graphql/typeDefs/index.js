@@ -17,9 +17,18 @@ const typeDefs = gql`
     user: User!
   }
 
+  type Query {
+      me: User
+      getUser(id: ID!): User
+      getUsers(search: String): [User!]!
+  }
+
   type Mutation {
     register(username: String!, email: String!, password: String!): AuthPayload!
     login(email: String!, password: String!): AuthPayload!
+      
+    updateProfile(username: String, avatar: String): User!
+    updateOnlineStatus(isOnline: Boolean!): User!
   }
 `;
 

@@ -1,15 +1,21 @@
 import { useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { MessageCircle } from "lucide-react";
+import { useQuery } from "@apollo/client/react";
+import { GET_ME } from "../queries/getMe.ts";
+import type { GetMeData } from "../types/user.ts";
 
 function MingleMeshChat() {
     const [activeNav, setActiveNav] = useState<string>("home");
+    const { data: userData } = useQuery<GetMeData>(GET_ME);
+
 
     return (
         <div className="flex h-screen bg-[#0a0a0f] overflow-hidden font-sans">
             <Sidebar
                 activeNav={activeNav}
                 onNavChange={setActiveNav}
+                user={userData?.me}
             />
 
                 <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0a0f] text-[#6b7280]">

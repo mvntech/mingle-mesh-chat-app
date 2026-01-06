@@ -5,6 +5,35 @@ import bcrypt from "bcryptjs";
 
 const resolvers = {
 
+    Query: {
+        me: async (parent, args, {user}) => {
+            if (!user) throw new AuthenticationError("Not authenticated");
+            return user;
+        },
+
+        getUser: async (parent, {id}, {user}) => {
+            if (!user) throw new AuthenticationError("Not authenticated");
+            return await User.findById(id);
+        },
+
+        getUsers: async (parent, {search}, {user}) => {
+            if (!user) throw new AuthenticationError("Not authenticated");
+            if (search && search.length < 2) {
+                throw new UserInputError("Search term too short");
+            }
+            const query = search
+                ? {
+                    $or: [
+                        {username: {$regex: search, $options: "i"}},
+                        {email: {$regex: search, $options: "i"}},
+                    ],
+                    _id: {$ne: user._id},
+                }
+                : {_id: {$ne: user._id}};
+            return await User.find(query).limit(20);
+        },
+    },
+
     Mutation: {
         register: async (parent, { username, email, password }) => {
             try {
