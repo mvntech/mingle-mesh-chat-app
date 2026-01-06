@@ -40,3 +40,49 @@ export interface MessageInputProps {
     onSend: (text: string) => void
     disabled?: boolean
 }
+
+export interface CreateChatData {
+    createChat: {
+        id: string;
+        name?: string | null;
+        avatar?: string | null;
+        isGroupChat: boolean;
+        participants: {
+            id: string;
+            username: string;
+            avatar?: string | null;
+            isOnline: boolean;
+        }[];
+        lastMessage?: {
+            content: string;
+            createdAt: string;
+        } | null;
+        messageStatus?: string;
+        unreadCount?: number;
+    };
+}
+
+export interface CreateChatVars {
+    participantIds: string[];
+    isGroupChat: boolean;
+}
+
+export interface GetChatsData {
+    getChats: Array<{
+        id: string;
+        name?: string | null;
+        isGroupChat: boolean;
+        messageStatus?: "sent" | "delivered" | "read";
+        unreadCount?: number | null;
+        lastMessage?: {
+            content?: string | null;
+            createdAt: string;
+        } | null;
+        participants: Array<{
+            id: string;
+            username: string;
+            avatar: string | null;
+            isOnline: boolean;
+        }>;
+    }>;
+}

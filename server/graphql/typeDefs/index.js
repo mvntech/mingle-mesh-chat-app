@@ -12,6 +12,34 @@ const typeDefs = gql`
     updatedAt: String!
   }
 
+  type Chat {
+      id: ID!
+      name: String
+      isGroupChat: Boolean!
+      participants: [User!]!
+      lastMessage: Message
+      groupAdmin: User
+      messageStatus: String
+      unreadCount: Int!
+      createdAt: String!
+      updatedAt: String!
+  }
+
+  type Message {
+      id: ID!
+      sender: User!
+      content: String!
+      chat: Chat!
+      readBy: [ReadBy!]!
+      createdAt: String!
+      updatedAt: String!
+  }
+
+  type ReadBy {
+      user: User!
+      readAt: String!
+  }
+
   type AuthPayload {
     token: String!
     user: User!
@@ -21,6 +49,9 @@ const typeDefs = gql`
       me: User
       getUser(id: ID!): User
       getUsers(search: String): [User!]!
+
+      getChats: [Chat!]!
+      getChat(id: ID!): Chat
   }
 
   type Mutation {
@@ -29,6 +60,13 @@ const typeDefs = gql`
       
     updateProfile(username: String, avatar: String): User!
     updateOnlineStatus(isOnline: Boolean!): User!
+
+    createChat(
+        participantIds: [ID!]!
+        name: String
+        isGroupChat: Boolean
+    ): Chat!
+    leaveChat(chatId: ID!): Chat!
   }
 `;
 
