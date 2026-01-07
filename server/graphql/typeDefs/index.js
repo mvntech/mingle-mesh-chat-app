@@ -31,6 +31,7 @@ const typeDefs = gql`
       content: String!
       chat: Chat!
       readBy: [ReadBy!]!
+      status: String
       createdAt: String!
       updatedAt: String!
   }
@@ -45,6 +46,12 @@ const typeDefs = gql`
     user: User!
   }
 
+  type TypingIndicator {
+      chatId: ID!
+      user: User!
+      isTyping: Boolean!
+  }
+
   type Query {
       me: User
       getUser(id: ID!): User
@@ -52,6 +59,8 @@ const typeDefs = gql`
 
       getChats: [Chat!]!
       getChat(id: ID!): Chat
+
+      getMessages(chatId: ID!, limit: Int, offset: Int): [Message!]!
   }
 
   type Mutation {
@@ -67,6 +76,17 @@ const typeDefs = gql`
         isGroupChat: Boolean
     ): Chat!
     leaveChat(chatId: ID!): Chat!
+
+    sendMessage(chatId: ID!, content: String!): Message!
+    markAsRead(messageId: ID!): Message!
+    markAsDelivered(messageId: ID!): Message!
+  }
+
+  type Subscription {
+      messageAdded(chatId: ID!): Message!
+      typingStatus(chatId: ID!): TypingIndicator!
+      userStatusChanged: User!
+      chatUpdated: Chat!
   }
 `;
 

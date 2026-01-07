@@ -2,7 +2,7 @@ import { Check, CheckCheck } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { ConversationItemProps } from "../../types/chat";
 
-export function ConversationItem({conversation, isSelected, onClick, }: ConversationItemProps) {
+export function ConversationItem({ conversation, isSelected, onClick, isTyping }: ConversationItemProps) {
     return (
         <button
             onClick={onClick}
@@ -26,23 +26,23 @@ export function ConversationItem({conversation, isSelected, onClick, }: Conversa
 
             <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-          <span className="text-white font-medium truncate">
-            {conversation.name}
-          </span>
+                    <span className="text-white font-medium truncate">
+                        {conversation.name}
+                    </span>
                     <span className="text-[#6b7280] text-xs flex-shrink-0">
-            {conversation.time}
-          </span>
+                        {conversation.time}
+                    </span>
                 </div>
                 <div className="flex items-center justify-between mt-0.5">
-          <span className="text-[#6b7280] text-sm truncate">
-            {conversation.lastMessage}
-          </span>
+                    <span className={cn("text-sm truncate", isTyping ? "text-[#3b82f6]" : "text-[#6b7280]")}>
+                        {isTyping ? "Typing..." : conversation.lastMessage}
+                    </span>
                     <div className="flex items-center flex-shrink-0">
                         {(conversation.unreadCount ?? 0) > 0 ? (
                             <div className="w-5 h-5 bg-[#3b82f6] rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-medium">
-                  {conversation.unreadCount}
-                </span>
+                                <span className="text-white text-xs font-medium">
+                                    {conversation.unreadCount}
+                                </span>
                             </div>
                         ) : (
                             <>

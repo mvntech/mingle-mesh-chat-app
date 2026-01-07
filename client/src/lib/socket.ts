@@ -3,7 +3,12 @@ import { io, Socket } from "socket.io-client";
 let socket: Socket | null = null;
 
 export function createSocket() {
-    if (socket) return socket;
+    if (socket) {
+        if (socket.disconnected) {
+            socket.connect();
+        }
+        return socket;
+    }
     const token = localStorage.getItem("token") || "";
     socket = io("http://localhost:5000", {
         auth: { token },

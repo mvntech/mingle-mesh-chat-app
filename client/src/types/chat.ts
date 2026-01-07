@@ -17,12 +17,14 @@ export interface ChatHeaderProps {
 export interface ChatViewProps {
     conversation: Conversation;
     currentUserId: string | null;
+    typingUsers: string[];
 }
 
 export interface ConversationItemProps {
     conversation: Conversation;
     isSelected: boolean;
     onClick: () => void;
+    isTyping?: boolean;
 }
 
 export interface ConversationListProps {
@@ -32,6 +34,7 @@ export interface ConversationListProps {
     searchQuery: string;
     onSearchChange: (query: string) => void;
     loading?: boolean;
+    typingUsers: Record<string, string[]>;
 }
 
 export interface MessageInputProps {

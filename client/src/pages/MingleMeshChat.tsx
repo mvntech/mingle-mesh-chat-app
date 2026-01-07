@@ -1,20 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { ConversationList } from "./components/ConversationList";
 import { ChatView } from "./components/ChatView";
-import {type Conversation, type GetChatsData} from "../types/chat";
-import { useQuery, useApolloClient } from "@apollo/client/react";
+import { useQuery, useMutation, useApolloClient } from "@apollo/client/react";
+import { MessageCircle } from "lucide-react";
+import createSocket from "../lib/socket";
+import type { GetMeData } from "../types/user";
+import { type Conversation, type GetChatsData } from "../types/chat";
 import { GET_ME } from "../queries/getMe";
 import { GET_CHATS } from "../queries/getChats";
-import { MessageCircle } from "lucide-react";
-import type { GetMeData } from "../types/user";
-import createSocket from "../lib/socket";
+import { MARK_AS_DELIVERED } from "../mutations/markAsDelivered";
+import { GET_MESSAGES } from "../queries/getMessages";
 
 export function MingleMeshChat() {
     const [activeNav, setActiveNav] = useState<string>("home");
     const [selectedConversation, setSelectedConversation] =
         useState<Conversation | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [typingUsers, setTypingUsers] = useState<Record<string, string[]>>({});
     const { data, loading: chatsLoading } = useQuery<GetChatsData>(GET_CHATS);
     const { data: userData } = useQuery<GetMeData>(GET_ME);
     const currentUserId: string | null = userData?.me?.id ?? localStorage.getItem("userId");
@@ -42,6 +45,29 @@ export function MingleMeshChat() {
         })
         : [];
 
+    useEffect(() => {
+        const socket = createSocket();
+        const handleTyping = ({ chatId, user, isTyping }: { chatId: string, user: { username: string }, isTyping: boolean }) => {
+            setTypingUsers(prev => {
+                const currentTypers = prev[chatId] || [];
+                if (isTyping) {
+                    if (!currentTypers.includes(user.username)) {
+                        return { ...prev, [chatId]: [...currentTypers, user.username] };
+                    }
+                } else {
+                    return { ...prev, [chatId]: currentTypers.filter(u => u !== user.username) };
+                }
+                return prev;
+            });
+        };
+
+        socket.on("typing", handleTyping);
+
+        return () => {
+            socket.off("typing", handleTyping);
+        };
+    }, []);
+
     return (
         <div className="flex h-screen bg-[#0a0a0f] overflow-hidden font-sans">
             <Sidebar
@@ -57,12 +83,14 @@ export function MingleMeshChat() {
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
                 loading={chatsLoading}
+                typingUsers={typingUsers}
             />
 
             {selectedConversation ? (
                 <ChatView
                     conversation={selectedConversation}
                     currentUserId={currentUserId}
+                    typingUsers={typingUsers[selectedConversation.id] || []}
                 />
             ) : (
                 <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0a0f] text-[#6b7280]">
@@ -81,13 +109,18 @@ export function MingleMeshAppWrapper() {
     const { data: userData } = useQuery<GetMeData>(GET_ME);
     const currentUserId = userData?.me?.id ?? localStorage.getItem("userId");
     const { data } = useQuery<GetChatsData>(GET_CHATS);
+    const [markAsDelivered] = useMutation(MARK_AS_DELIVERED);
+    const dataRef = useRef<GetChatsData | null>(null);
+    useEffect(() => {
+        dataRef.current = data ?? null;
+    }, [data]);
 
     useEffect(() => {
         if (!currentUserId) return;
         const socket = createSocket();
 
         const joinRooms = () => {
-            const chatIds = (data?.getChats || []).map((c) => c.id);
+            const chatIds = (dataRef.current?.getChats || []).map((c) => c.id);
             if (chatIds.length > 0) {
                 socket.emit("join-chats", chatIds);
             }
@@ -95,6 +128,122 @@ export function MingleMeshAppWrapper() {
 
         socket.on("connect", () => {
             joinRooms();
+        });
+
+        socket.on("new-message", (payload: { chatId: string; message: any }) => {
+            const { chatId, message } = payload;
+            if (message.sender.id !== currentUserId) {
+                markAsDelivered({ variables: { messageId: message.id } }).catch(e => console.error("Mark delivered failed", e));
+            }
+            try {
+                const chatIdent = client.cache.identify({ __typename: "Chat", id: chatId });
+                if (chatIdent) {
+                    client.cache.modify({
+                        id: chatIdent,
+                        fields: {
+                            unreadCount(prev = 0) {
+                                if (message.sender.id !== currentUserId) {
+                                    return prev + 1;
+                                }
+                                return prev;
+                            },
+                            lastMessage() {
+                                return { __ref: client.cache.identify(message) };
+                            }
+                        }
+                    })
+                }
+                try {
+                    const existingData: any = client.cache.readQuery({
+                        query: GET_MESSAGES,
+                        variables: { chatId },
+                    });
+                    if (existingData?.getMessages) {
+                        const exists = existingData.getMessages.some((msg: any) => msg.id === message.id);
+                        if (!exists) {
+                            client.cache.writeQuery({
+                                query: GET_MESSAGES,
+                                variables: { chatId },
+                                data: {
+                                    getMessages: [message, ...existingData.getMessages],
+                                },
+                            });
+                        }
+                    }
+                } catch (e) { }
+            } catch (e) {
+                console.error("Cache update error:", e);
+            }
+        });
+
+        socket.on("new-chat", (newChat: any) => {
+            try {
+                const exists = (dataRef.current?.getChats || []).some((c) => c.id === newChat.id);
+                if (exists) return;
+                client.cache.modify({
+                    fields: {
+                        getChats(existingChats = []) {
+                            const newChatRef = client.cache.writeFragment({
+                                data: newChat,
+                                fragment: {
+                                    kind: 'Document',
+                                    definitions: [{
+                                        kind: 'FragmentDefinition',
+                                        name: 'NewChat',
+                                        typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Chat' } },
+                                        selectionSet: {
+                                            kind: 'SelectionSet',
+                                            selections: [
+                                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                                                { kind: 'Field', name: { kind: 'Name', value: 'isGroupChat' } },
+                                                { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                                                { kind: 'Field', name: { kind: 'Name', value: 'unreadCount' } },
+                                                { kind: 'Field', name: { kind: 'Name', value: 'messageStatus' } },
+                                                { kind: 'Field', name: { kind: 'Name', value: 'participants' }, selectionSet: { kind: 'SelectionSet', selections: [{ kind: 'Field', name: { kind: 'Name', value: 'id' } }, { kind: 'Field', name: { kind: 'Name', value: 'username' } }, { kind: 'Field', name: { kind: 'Name', value: 'avatar' } }, { kind: 'Field', name: { kind: 'Name', value: 'isOnline' } }] } },
+                                                { kind: 'Field', name: { kind: 'Name', value: 'lastMessage' }, selectionSet: { kind: 'SelectionSet', selections: [{ kind: 'Field', name: { kind: 'Name', value: 'id' } }, { kind: 'Field', name: { kind: 'Name', value: 'content' } }, { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } }, { kind: 'Field', name: { kind: 'Name', value: 'sender' }, selectionSet: { kind: 'SelectionSet', selections: [{ kind: 'Field', name: { kind: 'Name', value: 'id' } }] } }] } },
+                                                { kind: 'Field', name: { kind: 'Name', value: 'groupAdmin' }, selectionSet: { kind: 'SelectionSet', selections: [{ kind: 'Field', name: { kind: 'Name', value: 'id' } }] } }
+                                            ]
+                                        }
+                                    }]
+                                } as any
+                            });
+                            return [newChatRef, ...existingChats];
+                        }
+                    }
+                });
+                socket.emit("join-chats", [newChat.id]);
+            } catch (e) {
+                console.error("Cache update error (new-chat):", e);
+            }
+        });
+
+        socket.on("message-delivered", (payload: { chatId: string, messageId: string, status: string }) => {
+            try {
+                const { chatId, messageId, status } = payload;
+                const messageIdent = client.cache.identify({ __typename: "Message", id: messageId });
+                if (messageIdent) {
+                    client.cache.modify({
+                        id: messageIdent,
+                        fields: {
+                            status() { return status; }
+                        }
+                    });
+                }
+                if (chatId) {
+                    const chatIdent = client.cache.identify({ __typename: "Chat", id: chatId });
+                    if (chatIdent) {
+                        client.cache.modify({
+                            id: chatIdent,
+                            fields: {
+                                messageStatus() { return "delivered"; }
+                            }
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error("Cache update error:", e);
+            }
         });
 
         socket.on("message-read", (payload: {
@@ -127,8 +276,29 @@ export function MingleMeshAppWrapper() {
                             },
                         });
                     }
-                } catch (err) {
-                    console.error("Failed to update message readBy in cache:", err);
+                } catch (e) {
+                    console.error("Failed to update message readBy in cache:", e);
+                }
+
+                if (chatId) {
+                    try {
+                        const chatIdent = client.cache.identify({
+                            __typename: "Chat",
+                            id: chatId,
+                        });
+                        if (chatIdent) {
+                            client.cache.modify({
+                                id: chatIdent,
+                                fields: {
+                                    messageStatus() {
+                                        return "read";
+                                    },
+                                },
+                            });
+                        }
+                    } catch (e) {
+                        console.error("Failed to update chat messageStatus:", e);
+                    }
                 }
 
                 if (String(userId) === String(currentUserId) && chatId) {
@@ -147,25 +317,37 @@ export function MingleMeshAppWrapper() {
                                 },
                             });
                         }
-                    } catch (err) {
-                        console.error("Failed to update chat unreadCount in cache:", err);
+                    } catch (e) {
+                        console.error("Failed to update chat unreadCount in cache:", e);
                     }
                 }
-            } catch (err) {
-                console.error("message-read handler error:", err);
+            } catch (e) {
+                console.error("message-read handler error:", e);
             }
         });
 
         return () => {
             socket.off("message-read");
+            socket.off("message-delivered");
+            socket.off("new-message");
+            socket.off("new-chat");
             socket.off("connect");
             try {
-                socket.disconnect();
+                if (socket.connected) socket.disconnect();
             } catch (e) {
                 console.error(e);
             }
         };
-    }, [client, currentUserId, data]);
+    }, [client, currentUserId, markAsDelivered]);
+
+    useEffect(() => {
+        if (!data?.getChats || !currentUserId) return;
+        const socket = createSocket();
+        const chatIds = data.getChats.map((c) => c.id);
+        if (chatIds.length > 0) {
+            socket.emit("join-chats", chatIds);
+        }
+    }, [data, currentUserId]);
 
     return <MingleMeshChat />;
 }

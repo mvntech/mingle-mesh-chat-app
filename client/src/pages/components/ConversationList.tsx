@@ -6,7 +6,7 @@ import { useLazyQuery } from "@apollo/client/react";
 import { SEARCH_USERS } from "../../queries/searchUsers";
 import { CREATE_CHAT } from "../../mutations/createChat";
 import type { Conversation, ConversationListProps, CreateChatData, CreateChatVars } from "../../types/chat";
-import type {SearchUsersData} from "../../types/user.ts";
+import type { SearchUsersData } from "../../types/user.ts";
 
 function useDebounce<T>(value: T, delay: number): T {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -17,7 +17,7 @@ function useDebounce<T>(value: T, delay: number): T {
     return debouncedValue;
 }
 
-export function ConversationList({ contacts, selectedId, onSelect, searchQuery, onSearchChange }: ConversationListProps) {
+export function ConversationList({ contacts, selectedId, onSelect, searchQuery, onSearchChange, typingUsers }: ConversationListProps) {
     const debouncedSearchTerm = useDebounce(searchQuery, 500);
     const [searchUsers, { data, loading }] = useLazyQuery<SearchUsersData>(SEARCH_USERS);
     useEffect(() => {
@@ -67,7 +67,6 @@ export function ConversationList({ contacts, selectedId, onSelect, searchQuery, 
 
     return (
         <div className="w-[340px] bg-[#12121a] flex flex-col my-3 rounded-2xl overflow-hidden border border-[#1f1f2e]">
-            {/* search bar */}
             <div className="p-4">
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6b7280]" />
@@ -169,6 +168,7 @@ export function ConversationList({ contacts, selectedId, onSelect, searchQuery, 
                                                 conversation={contact}
                                                 isSelected={selectedId === contact.id}
                                                 onClick={() => onSelect(contact)}
+                                                isTyping={(typingUsers[contact.id] || []).length > 0}
                                             />
                                         ))}
                                     </div>
