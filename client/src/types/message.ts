@@ -11,7 +11,10 @@ export interface ReadByEntry {
 
 export interface Message {
     id: string;
-    content: string;
+    content?: string | null;
+    fileUrl?: string | null;
+    fileType?: string | null;
+    fileName?: string | null;
     createdAt: string;
     status: MessageStatus;
     sender: {
@@ -32,12 +35,18 @@ export interface SendMessageData {
 
 export interface SendMessageVars {
     chatId: string;
-    content: string;
+    content?: string | null;
+    fileUrl?: string | null;
+    fileType?: string | null;
+    fileName?: string | null;
 }
 
 export interface ChatMessage {
     id: string;
-    text: string;
+    text?: string | null;
+    fileUrl?: string | null;
+    fileType?: string | null;
+    fileName?: string | null;
     time: string;
     isOwn: boolean;
     messageStatus: MessageStatus | "seen";

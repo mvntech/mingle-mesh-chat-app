@@ -9,7 +9,18 @@ const messageSchema = new mongoose.Schema(
         },
         content: {
             type: String,
-            required: true,
+            trim: true,
+        },
+        fileUrl: {
+            type: String,
+            trim: true,
+        },
+        fileType: {
+            type: String,
+            trim: true,
+        },
+        fileName: {
+            type: String,
             trim: true,
         },
         chat: {
@@ -37,6 +48,8 @@ const messageSchema = new mongoose.Schema(
     },
     {
         timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true },
     }
 );
 

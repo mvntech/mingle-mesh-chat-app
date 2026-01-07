@@ -3,7 +3,7 @@ import { Sidebar } from "./components/Sidebar";
 import { ConversationList } from "./components/ConversationList";
 import { ChatView } from "./components/ChatView";
 import { useQuery, useMutation, useApolloClient } from "@apollo/client/react";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Camera, Video, File } from "lucide-react";
 import createSocket from "../lib/socket";
 import type { GetMeData } from "../types/user";
 import { type Conversation, type GetChatsData } from "../types/chat";
@@ -31,7 +31,23 @@ export function MingleMeshChat() {
                 name: chat.name || other.username,
                 avatar: other.avatar ?? null,
                 isOnline: other.isOnline,
-                lastMessage: chat.lastMessage?.content || "",
+                lastMessage: chat.lastMessage?.content ? (
+                    chat.lastMessage.content
+                ) : chat.lastMessage?.fileType === "image" ? (
+                    <span className="flex items-center gap-1.5">
+                        <Camera className="w-3.5 h-3.5" /> Photo
+                    </span>
+                ) : chat.lastMessage?.fileType === "video" ? (
+                    <span className="flex items-center gap-1.5">
+                        <Video className="w-3.5 h-3.5" /> Video
+                    </span>
+                ) : chat.lastMessage?.fileUrl ? (
+                    <span className="flex items-center gap-1.5">
+                        <File className="w-3.5 h-3.5" /> File
+                    </span>
+                ) : (
+                    ""
+                ),
                 time: chat.lastMessage
                     ? new Date(chat.lastMessage.createdAt).toLocaleTimeString("en-US", {
                         hour: "numeric",
@@ -131,8 +147,31 @@ export function MingleMeshAppWrapper() {
         });
 
         socket.on("new-message", (payload: { chatId: string; message: any }) => {
-            const { chatId, message } = payload;
-            if (message.sender.id !== currentUserId) {
+            const { chatId, message: rawMessage } = payload;
+
+            const normalizeUser = (u: any) => u ? ({
+                ...u,
+                id: String(u.id || u._id || ''),
+                __typename: "User"
+            }) : null;
+
+            const message = {
+                ...rawMessage,
+                __typename: "Message",
+                id: String(rawMessage.id || rawMessage._id || ''),
+                content: rawMessage.content || null,
+                fileUrl: rawMessage.fileUrl || null,
+                fileType: rawMessage.fileType || null,
+                fileName: rawMessage.fileName || null,
+                sender: normalizeUser(rawMessage.sender),
+                readBy: (rawMessage.readBy || []).map((r: any) => ({
+                    ...r,
+                    __typename: "ReadBy",
+                    user: normalizeUser(r.user)
+                }))
+            };
+
+            if (message.sender?.id !== currentUserId) {
                 markAsDelivered({ variables: { messageId: message.id } }).catch(e => console.error("Mark delivered failed", e));
             }
             try {
@@ -142,13 +181,13 @@ export function MingleMeshAppWrapper() {
                         id: chatIdent,
                         fields: {
                             unreadCount(prev = 0) {
-                                if (message.sender.id !== currentUserId) {
+                                if (message.sender?.id !== currentUserId) {
                                     return prev + 1;
                                 }
                                 return prev;
                             },
                             lastMessage() {
-                                return { __ref: client.cache.identify(message) };
+                                return message;
                             }
                         }
                     })
@@ -159,7 +198,7 @@ export function MingleMeshAppWrapper() {
                         variables: { chatId },
                     });
                     if (existingData?.getMessages) {
-                        const exists = existingData.getMessages.some((msg: any) => msg.id === message.id);
+                        const exists = existingData.getMessages.some((msg: any) => (msg.id || msg._id) === message.id);
                         if (!exists) {
                             client.cache.writeQuery({
                                 query: GET_MESSAGES,
@@ -176,8 +215,27 @@ export function MingleMeshAppWrapper() {
             }
         });
 
-        socket.on("new-chat", (newChat: any) => {
+        socket.on("new-chat", (rawChat: any) => {
             try {
+                const normalizeUser = (u: any) => u ? ({
+                    ...u,
+                    id: String(u.id || u._id || ''),
+                    __typename: "User"
+                }) : null;
+
+                const newChat = {
+                    ...rawChat,
+                    __typename: "Chat",
+                    id: String(rawChat.id || rawChat._id || ''),
+                    participants: (rawChat.participants || []).map(normalizeUser),
+                    lastMessage: rawChat.lastMessage ? {
+                        ...rawChat.lastMessage,
+                        __typename: "Message",
+                        id: String(rawChat.lastMessage.id || rawChat.lastMessage._id || ''),
+                        content: rawChat.lastMessage.content || null,
+                        sender: normalizeUser(rawChat.lastMessage.sender)
+                    } : null
+                };
                 const exists = (dataRef.current?.getChats || []).some((c) => c.id === newChat.id);
                 if (exists) return;
                 client.cache.modify({

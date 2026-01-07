@@ -28,7 +28,10 @@ const typeDefs = gql`
   type Message {
       id: ID!
       sender: User!
-      content: String!
+      content: String
+      fileUrl: String
+      fileType: String
+      fileName: String
       chat: Chat!
       readBy: [ReadBy!]!
       status: String
@@ -52,6 +55,13 @@ const typeDefs = gql`
       isTyping: Boolean!
   }
 
+  type CloudinarySignature {
+      signature: String!
+      timestamp: Int!
+      cloudName: String!
+      apiKey: String!
+  }
+
   type Query {
       me: User
       getUser(id: ID!): User
@@ -61,6 +71,8 @@ const typeDefs = gql`
       getChat(id: ID!): Chat
 
       getMessages(chatId: ID!, limit: Int, offset: Int): [Message!]!
+      
+      cloudinarySignature: CloudinarySignature!
   }
 
   type Mutation {
@@ -77,7 +89,13 @@ const typeDefs = gql`
     ): Chat!
     leaveChat(chatId: ID!): Chat!
 
-    sendMessage(chatId: ID!, content: String!): Message!
+    sendMessage(
+      chatId: ID!
+      content: String
+      fileUrl: String
+      fileType: String
+      fileName: String
+    ): Message!
     markAsRead(messageId: ID!): Message!
     markAsDelivered(messageId: ID!): Message!
   }

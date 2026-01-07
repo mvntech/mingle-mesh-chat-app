@@ -1,20 +1,11 @@
 import { gql } from "@apollo/client";
+import { MESSAGE_FRAGMENT } from "../fragments/message";
 
 export const GET_MESSAGES = gql`
   query GetMessages($chatId: ID!) {
     getMessages(chatId: $chatId) {
-      id
-      content
-      createdAt
-      status
-      sender {
-        id
-      }
-      readBy {
-        user {
-          id
-        }
-      }
+      ...MessageFragment
     }
   }
+  ${MESSAGE_FRAGMENT}
 `;

@@ -13,7 +13,11 @@ export const GET_CHATS = gql`
         isOnline
       }
       lastMessage {
+        id
         content
+        fileUrl
+        fileType
+        fileName
         createdAt
       }
       messageStatus

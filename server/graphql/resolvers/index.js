@@ -3,6 +3,7 @@ import User from "../../models/User.js";
 import Chat from "../../models/Chat.js";
 import Message from "../../models/Message.js";
 import { generateToken } from "../../middleware/auth.js";
+import cloudinary from "../../config/cloudinary.js";
 import { AuthenticationError, UserInputError } from "apollo-server-express";
 import { withFilter } from "graphql-subscriptions";
 import DOMPurify from "isomorphic-dompurify";
@@ -75,6 +76,23 @@ const resolvers = {
                 .sort({ createdAt: -1 })
                 .limit(limit)
                 .skip(offset);
+        },
+
+        cloudinarySignature: async () => {
+            const timestamp = Math.round(Date.now() / 1000);
+            const signature = cloudinary.utils.api_sign_request(
+                {
+                    timestamp,
+                    folder: "chat_uploads",
+                },
+                process.env.CLOUDINARY_API_SECRET
+            );
+            return {
+                signature,
+                timestamp,
+                cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+                apiKey: process.env.CLOUDINARY_API_KEY,
+            };
         },
     },
 
@@ -171,7 +189,7 @@ const resolvers = {
                     name;
                 }
                 populatedChat.participants.forEach((participant) => {
-                    io.to(`user-${participant._id}`).emit("new-chat", populatedChat);
+                    io.to(`user-${participant._id}`).emit("new-chat", populatedChat.toJSON());
                 });
             }
 
@@ -195,17 +213,25 @@ const resolvers = {
                 .populate("groupAdmin");
         },
 
-        sendMessage: async (parent, { chatId, content }, { user, pubsub, io }) => {
+        sendMessage: async (parent, { chatId, content, fileUrl, fileType, fileName }, { user, pubsub, io }) => {
             if (!user) throw new AuthenticationError("Not authenticated");
             const chat = await Chat.findOne({
                 _id: chatId,
                 participants: { $in: [user._id] },
             });
             if (!chat) throw new UserInputError("Chat not found");
-            const safeContent = DOMPurify.sanitize(content);
+
+            if (!content && !fileUrl) {
+                throw new UserInputError("Message must have content or a file");
+            }
+
+            const safeContent = content ? DOMPurify.sanitize(content) : undefined;
             const createdMessage = await Message.create({
                 sender: user._id,
                 content: safeContent,
+                fileUrl,
+                fileType,
+                fileName,
                 chat: chatId,
                 readBy: [{ user: user._id, readAt: new Date() }],
             });
@@ -225,7 +251,7 @@ const resolvers = {
             if (io) {
                 io.to(`chat-${chatId}`).emit("new-message", {
                     chatId,
-                    message: populatedMessage,
+                    message: populatedMessage.toJSON(),
                 });
             }
             return populatedMessage;
@@ -251,7 +277,7 @@ const resolvers = {
                     chatId: message.chat.toString(),
                     messageId: message._id.toString(),
                     userId: user._id.toString(),
-                    readBy: populatedMessage.readBy,
+                    readBy: populatedMessage.toJSON().readBy,
                 });
             }
             return populatedMessage;
@@ -349,82 +375,82 @@ const resolvers = {
     },
 };
 
-    resolvers.User = {
-        id: (user) => (user.id ? user.id : user._id ? user._id.toString() : null),
-        lastSeen: (user) => (user.lastSeen ? user.lastSeen.toISOString() : null),
-        createdAt: (user) => (user.createdAt ? user.createdAt.toISOString() : null),
-        updatedAt: (user) => (user.updatedAt ? user.updatedAt.toISOString() : null),
-    };
+resolvers.User = {
+    id: (user) => (user.id ? user.id : user._id ? user._id.toString() : null),
+    lastSeen: (user) => (user.lastSeen ? user.lastSeen.toISOString() : null),
+    createdAt: (user) => (user.createdAt ? user.createdAt.toISOString() : null),
+    updatedAt: (user) => (user.updatedAt ? user.updatedAt.toISOString() : null),
+};
 
-    resolvers.Chat = {
-        id: (chat) => (chat.id ? chat.id : chat._id ? chat._id.toString() : null),
-        createdAt: (chat) => (chat.createdAt ? chat.createdAt.toISOString() : null),
-        updatedAt: (chat) => (chat.updatedAt ? chat.updatedAt.toISOString() : null),
-        messageStatus: async (chat, args, { user }) => {
-            try {
-                let chatDoc = chat;
-                if (!chatDoc.participants) {
-                    chatDoc = await Chat.findById(chat._id).populate("participants");
-                }
-                const lastMessageId = chatDoc.lastMessage?._id
-                    ? chatDoc.lastMessage._id
-                    : chatDoc.lastMessage;
-                if (!lastMessageId) return chatDoc.messageStatus || "sent";
-                const lastMsg = await Message.findById(lastMessageId)
-                    .populate("readBy.user")
-                    .populate("sender");
-                if (!lastMsg) return chatDoc.messageStatus || "sent";
-                const participantIds = (chatDoc.participants || []).map((p) =>
-                    p._id ? p._id.toString() : p.toString()
-                );
-                const senderId = lastMsg.sender?._id
-                    ? lastMsg.sender._id.toString()
-                    : lastMsg.sender?.toString();
-                const readUserIds = (lastMsg.readBy || [])
-                    .map((r) =>
-                        r.user
-                            ? r.user._id
-                                ? r.user._id.toString()
-                                : r.user.toString()
-                            : null
-                    )
-                    .filter(Boolean);
-                const otherParticipantIds = participantIds.filter(
-                    (id) => id !== senderId
-                );
-                const allRead =
-                    otherParticipantIds.length > 0 &&
-                    otherParticipantIds.every((id) => readUserIds.includes(id));
-                if (allRead) return "read";
-                if (lastMsg.status === "delivered" || readUserIds.length > 0) return "delivered";
-
-                return "sent";
-            } catch (err) {
-                return chat.messageStatus || "sent";
+resolvers.Chat = {
+    id: (chat) => (chat.id ? chat.id : chat._id ? chat._id.toString() : null),
+    createdAt: (chat) => (chat.createdAt ? chat.createdAt.toISOString() : null),
+    updatedAt: (chat) => (chat.updatedAt ? chat.updatedAt.toISOString() : null),
+    messageStatus: async (chat, args, { user }) => {
+        try {
+            let chatDoc = chat;
+            if (!chatDoc.participants) {
+                chatDoc = await Chat.findById(chat._id).populate("participants");
             }
-        },
-        unreadCount: async (chat, args, { user }) => {
-            if (!user) return 0;
-            try {
-                const count = await Message.countDocuments({
-                    chat: chat._id,
-                    sender: { $ne: user._id },
-                    "readBy.user": { $ne: user._id },
-                });
-                return count || 0;
-            } catch (err) {
-                return 0;
-            }
-        },
-    };
+            const lastMessageId = chatDoc.lastMessage?._id
+                ? chatDoc.lastMessage._id
+                : chatDoc.lastMessage;
+            if (!lastMessageId) return chatDoc.messageStatus || "sent";
+            const lastMsg = await Message.findById(lastMessageId)
+                .populate("readBy.user")
+                .populate("sender");
+            if (!lastMsg) return chatDoc.messageStatus || "sent";
+            const participantIds = (chatDoc.participants || []).map((p) =>
+                p._id ? p._id.toString() : p.toString()
+            );
+            const senderId = lastMsg.sender?._id
+                ? lastMsg.sender._id.toString()
+                : lastMsg.sender?.toString();
+            const readUserIds = (lastMsg.readBy || [])
+                .map((r) =>
+                    r.user
+                        ? r.user._id
+                            ? r.user._id.toString()
+                            : r.user.toString()
+                        : null
+                )
+                .filter(Boolean);
+            const otherParticipantIds = participantIds.filter(
+                (id) => id !== senderId
+            );
+            const allRead =
+                otherParticipantIds.length > 0 &&
+                otherParticipantIds.every((id) => readUserIds.includes(id));
+            if (allRead) return "read";
+            if (lastMsg.status === "delivered" || readUserIds.length > 0) return "delivered";
 
-    resolvers.Message = {
-        id: (msg) => (msg.id ? msg.id : msg._id ? msg._id.toString() : null),
-        createdAt: (msg) => (msg.createdAt ? msg.createdAt.toISOString() : null),
-        updatedAt: (msg) => (msg.updatedAt ? msg.updatedAt.toISOString() : null),
-        sender: (msg) => {
-            return msg.sender;
-        },
-    };
+            return "sent";
+        } catch (err) {
+            return chat.messageStatus || "sent";
+        }
+    },
+    unreadCount: async (chat, args, { user }) => {
+        if (!user) return 0;
+        try {
+            const count = await Message.countDocuments({
+                chat: chat._id,
+                sender: { $ne: user._id },
+                "readBy.user": { $ne: user._id },
+            });
+            return count || 0;
+        } catch (err) {
+            return 0;
+        }
+    },
+};
+
+resolvers.Message = {
+    id: (msg) => (msg.id ? msg.id : msg._id ? msg._id.toString() : null),
+    createdAt: (msg) => (msg.createdAt ? msg.createdAt.toISOString() : null),
+    updatedAt: (msg) => (msg.updatedAt ? msg.updatedAt.toISOString() : null),
+    sender: (msg) => {
+        return msg.sender;
+    },
+};
 
 export default resolvers;

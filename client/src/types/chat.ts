@@ -3,7 +3,7 @@ export interface Conversation {
     name: string;
     avatar: string | null;
     isOnline: boolean;
-    lastMessage?: string | null;
+    lastMessage?: React.ReactNode;
     time?: string | null;
     unreadCount?: number;
     messageStatus?: "sent" | "delivered" | "read";
@@ -40,7 +40,7 @@ export interface ConversationListProps {
 export interface MessageInputProps {
     value: string
     onChange: (value: string) => void
-    onSend: (text: string) => void
+    onSend: (text: string, fileData?: { fileUrl: string, fileType: string, fileName: string }) => void
     disabled?: boolean
 }
 
@@ -79,6 +79,8 @@ export interface GetChatsData {
         unreadCount?: number | null;
         lastMessage?: {
             content?: string | null;
+            fileUrl?: string | null;
+            fileType?: string | null;
             createdAt: string;
         } | null;
         participants: Array<{

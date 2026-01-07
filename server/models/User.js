@@ -40,6 +40,8 @@ const userSchema = new mongoose.Schema(
     },
     {
         timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true },
     }
 );
 
@@ -55,7 +57,7 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 };
 
 userSchema.methods.toJSON = function () {
-    const obj = this.toObject();
+    const obj = this.toObject({ virtuals: true });
     delete obj.password;
     return obj;
 };

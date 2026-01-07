@@ -42,20 +42,25 @@ export function ChatView({ conversation, currentUserId, typingUsers }: ChatViewP
         }
     }, [data?.getMessages]);
 
-    const handleSendMessage = async (text: string) => {
-        if (!text.trim() || !conversation.id) return;
+    const handleSendMessage = async (text: string, fileData?: { fileUrl: string, fileType: string, fileName: string }) => {
+        if (!text.trim() && !fileData) return;
+        if (!conversation.id) return;
 
         try {
             await sendMessage({
                 variables: {
                     chatId: conversation.id,
-                    content: text.trim(),
+                    content: text.trim() || undefined,
+                    ...fileData
                 },
                 optimisticResponse: {
                     sendMessage: {
                         __typename: "Message",
                         id: `temp-${Date.now()}`,
-                        content: text.trim(),
+                        content: text.trim() || null,
+                        fileUrl: fileData?.fileUrl || null,
+                        fileType: fileData?.fileType || null,
+                        fileName: fileData?.fileName || null,
                         createdAt: new Date().toISOString(),
                         status: "sent",
                         sender: {
@@ -161,7 +166,7 @@ export function ChatView({ conversation, currentUserId, typingUsers }: ChatViewP
         <div className="flex-1 flex flex-col bg-[#0a0a0f] my-3 mr-3 rounded-2xl overflow-hidden">
             <ChatHeader conversation={conversation} />
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin scrollbar-thumb-[#1f1f2e]">
+            <div className="flex-1 overflow-y-auto p-6 space-y-2 scrollbar-thin scrollbar-thumb-[#1f1f2e]">
                 {[...(data?.getMessages || [])]
                     .slice()
                     .reverse()
@@ -195,6 +200,9 @@ export function ChatView({ conversation, currentUserId, typingUsers }: ChatViewP
                                 message={{
                                     id: msg.id,
                                     text: msg.content,
+                                    fileUrl: msg.fileUrl,
+                                    fileType: msg.fileType,
+                                    fileName: msg.fileName,
                                     time,
                                     isOwn,
                                     messageStatus,
