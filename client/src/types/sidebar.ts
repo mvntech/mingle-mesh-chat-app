@@ -1,7 +1,8 @@
-import type { UserProfile } from "./user.ts";
+import type { UserProfile } from "./user";
 
 export interface SidebarProps {
     activeNav: string;
-    onNavChange: (nav: string) => void;
+    onNavChange: (id: string) => void;
     user?: UserProfile;
+    unreadTotal?: number;
 }

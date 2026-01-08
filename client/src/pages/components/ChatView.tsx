@@ -27,7 +27,7 @@ export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat
         }, 2000);
     };
 
-    const { data, loading } = useQuery<GetMessagesData>(GET_MESSAGES, {
+    const { data, loading, error } = useQuery<GetMessagesData>(GET_MESSAGES, {
         variables: { chatId: conversation.id },
         fetchPolicy: "cache-and-network",
     });
@@ -132,7 +132,7 @@ export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat
 
     if (loading && !data)
         return (
-            <div className="flex-1 flex flex-col bg-[#0a0a0f] my-3 mr-3 rounded-2xl overflow-hidden">
+            <div className="flex-1 flex flex-col bg-[#0a0a0f] my-0 md:my-3 mr-0 md:mr-3 md:rounded-2xl overflow-hidden">
                 <ChatHeader conversation={conversation} onLeaveChat={onLeaveChat} />
 
                 <div className="flex-1 p-6 space-y-4">
@@ -162,11 +162,35 @@ export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat
             </div>
         );
 
+    if (error) {
+        return (
+            <div className="flex-1 flex flex-col bg-[#0a0a0f] my-0 md:my-3 mr-0 md:mr-3 md:rounded-2xl overflow-hidden">
+                <ChatHeader conversation={conversation} onLeaveChat={onLeaveChat} />
+                <div className="flex-1 flex flex-col items-center justify-center text-red-400">
+                    <p className="font-medium">Failed to load messages</p>
+                    <p className="text-sm opacity-70 mt-1">Please try again later</p>
+                </div>
+                <MessageInput
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onSend={handleSendMessage}
+                    disabled={true}
+                />
+            </div>
+        );
+    }
+
     return (
-        <div className="flex-1 flex flex-col bg-[#0a0a0f] my-3 mr-3 rounded-2xl overflow-hidden">
+        <div className="flex-1 flex flex-col bg-[#0a0a0f] my-0 md:my-3 mr-0 md:mr-3 md:rounded-2xl overflow-hidden">
             <ChatHeader conversation={conversation} onLeaveChat={onLeaveChat} />
 
             <div className="flex-1 overflow-y-auto p-6 space-y-2 scrollbar-thin scrollbar-thumb-[#1f1f2e]">
+                {data?.getMessages && data.getMessages.length === 0 && (
+                    <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b7280]">
+                        <p>No messages yet</p>
+                        <p className="text-sm">Say hello!</p>
+                    </div>
+                )}
                 {[...(data?.getMessages || [])]
                     .slice()
                     .reverse()

@@ -5,25 +5,28 @@ import useLogout from "../../lib/logout";
 import type { SidebarProps } from "../../types/sidebar"
 
 const navItems = [
-    { id: "home", icon: Home, path: "/" },
-    { id: "chat", icon: MessageCircle, path: "" },
-    { id: "favorites", icon: Star, path: "" },
-    { id: "settings", icon: Settings, path: "/settings" },
+    { id: "home", icon: Home, path: "/", label: "Home" },
+    { id: "chat", icon: MessageCircle, path: "", label: "Chats" },
+    { id: "favorites", icon: Star, path: "", label: "Favorites" },
+    { id: "settings", icon: Settings, path: "/settings", label: "Settings" },
 ];
 
-export function Sidebar({ activeNav, onNavChange, user }: SidebarProps) {
+export function Sidebar({ activeNav, onNavChange, user, unreadTotal }: SidebarProps) {
     const logout = useLogout();
     const navigate = useNavigate();
 
     return (
-        <div className="w-[100px] bg-[#12121a] flex flex-col items-center py-6 rounded-2xl m-3">
-            <div className="mb-8">
+        <div className={cn(
+            "fixed bottom-0 left-0 right-0 h-20 bg-[#12121a]/95 backdrop-blur-lg flex flex-row items-center justify-around z-50 border-t border-[#1f1f2e] px-2",
+            "md:relative md:bottom-auto md:left-auto md:right-auto md:h-[calc(100vh-24px)] md:w-20 lg:w-[100px] md:flex-col md:py-6 md:rounded-2xl md:m-3 md:border-none md:bg-[#12121a]"
+        )}>
+            <div className="hidden md:block mb-8">
                 <button
                     onClick={() => {
                         onNavChange("settings");
                         navigate("/settings");
                     }}
-                    className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#3b82f6]"
+                    className="w-12 h-12 lg:w-16 lg:h-16 rounded-full overflow-hidden border-2 border-[#3b82f6]"
                 >
                     {user?.avatar ? (
                         <img
@@ -37,7 +40,7 @@ export function Sidebar({ activeNav, onNavChange, user }: SidebarProps) {
                         />
                     ) : (
                         <img
-                            src="https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767875857/dummy-user_utzikg.jpg"
+                            src="https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767889266/dummy-user_ilqiiw.jpg"
                             alt="Profile"
                             className="w-full h-full object-cover"
                         />
@@ -45,10 +48,12 @@ export function Sidebar({ activeNav, onNavChange, user }: SidebarProps) {
                 </button>
             </div>
 
-            <nav className="flex-1 flex flex-col items-center gap-2">
+            <nav className="flex-1 flex flex-row md:flex-col items-center justify-around md:justify-start w-full md:gap-2">
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = activeNav === item.id;
+                    const hasBadge = item.id === "chat" && (unreadTotal ?? 0) > 0;
+
                     return (
                         <button
                             key={item.id}
@@ -57,16 +62,33 @@ export function Sidebar({ activeNav, onNavChange, user }: SidebarProps) {
                                 navigate(item.path);
                             }}
                             className={cn(
-                                "relative w-16 h-16 flex items-center justify-center rounded-xl transition-all duration-200",
-                                isActive
-                                    ? "bg-[#3b82f6] text-white"
-                                    : "text-[#6b7280] hover:text-white hover:bg-[#1f1f2e]"
+                                "flex flex-col items-center justify-center gap-1 group transition-all duration-200",
+                                "w-full md:w-16 md:h-16 lg:w-16 lg:h-16 md:rounded-xl",
+                                !isActive && "text-[#6b7280] hover:text-white"
                             )}
                         >
-                            <Icon className="w-6 h-6" />
-                            {isActive && (
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#facc15] rounded-l-full" />
-                            )}
+                            <div className={cn(
+                                "relative flex items-center justify-center rounded-full transition-all duration-300",
+                                "w-14 h-8 md:w-full md:h-full md:rounded-xl",
+                                isActive && "bg-[#3b82f6]/20 text-[#3b82f6]",
+                                isActive && "md:bg-[#3b82f6] md:text-white"
+                            )}>
+                                <Icon className="w-5 h-5 md:w-6 md:h-6" />
+                                {hasBadge && (
+                                    <div className="absolute -top-1 -right-1 md:-top-1 md:-right-1 bg-[#3b82f6] text-white text-[10px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center">
+                                        {unreadTotal}
+                                    </div>
+                                )}
+                                {isActive && (
+                                    <div className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#facc15] rounded-l-full" />
+                                )}
+                            </div>
+                            <span className={cn(
+                                "text-[10px] sm:text-xs font-medium md:hidden transition-colors",
+                                isActive ? "text-white" : "text-[#6b7280]"
+                            )}>
+                                {item.label}
+                            </span>
                         </button>
                     );
                 })}
@@ -74,9 +96,9 @@ export function Sidebar({ activeNav, onNavChange, user }: SidebarProps) {
 
             <button
                 onClick={logout}
-                className="w-16 h-16 flex items-center justify-center text-[#6b7280] hover:text-white hover:bg-[#1f1f2e] rounded-xl transition-all duration-200 cursor-pointer"
+                className="hidden md:flex w-12 h-12 lg:w-16 lg:h-16 items-center justify-center text-[#6b7280] hover:text-white hover:bg-[#1f1f2e] rounded-xl transition-all duration-200 cursor-pointer"
             >
-                <LogOut className="w-6 h-6" />
+                <LogOut className="w-5 h-5 md:w-6 md:h-6" />
             </button>
         </div>
     );

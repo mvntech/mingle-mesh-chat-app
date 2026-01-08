@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { toast } from "react-hot-toast";
-import { Star, Trash2 } from "lucide-react";
+import { Star, Trash2, ChevronLeft } from "lucide-react";
 import { ConfirmationModal } from "./ConfirmationModal";
 import type { GetMeData } from "../../types/user";
 import type { ChatHeaderProps } from "../../types/chat";
@@ -9,6 +9,7 @@ import { LEAVE_CHAT } from "../../mutations/leaveChat";
 import { TOGGLE_FAVORITE } from "../../mutations/toggleFavorite";
 import { GET_CHATS } from "../../queries/getChats";
 import { GET_ME } from "../../queries/getMe";
+import { cn } from "../../lib/utils.ts";
 
 export function ChatHeader({ conversation, onLeaveChat }: ChatHeaderProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,12 +60,18 @@ export function ChatHeader({ conversation, onLeaveChat }: ChatHeaderProps) {
     });
 
     return (
-        <div className="flex items-center justify-between p-4 border-b border-[#1f1f2e]">
-            <div className="flex items-center gap-3">
-                <div className="relative">
+        <div className="flex items-center justify-between p-3 md:p-4 border-b border-[#1f1f2e] bg-[#0a0a0f]/80 backdrop-blur-md sticky top-0 z-10">
+            <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
+                <button
+                    onClick={() => onLeaveChat?.()}
+                    className="md:hidden p-2 -ml-2 text-gray-400 hover:text-white"
+                >
+                    <ChevronLeft className="w-6 h-6" />
+                </button>
+                <div className="relative flex-shrink-0">
                     <div className="w-12 h-12 rounded-full overflow-hidden">
                         <img
-                            src={conversation.avatar || "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767875857/dummy-user_utzikg.jpg"}
+                            src={conversation.avatar || "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767889266/dummy-user_ilqiiw.jpg"}
                             alt={conversation.name}
                             className="w-full h-full object-cover"
                         />
@@ -75,7 +82,7 @@ export function ChatHeader({ conversation, onLeaveChat }: ChatHeaderProps) {
                 </div>
                 <div>
                     <h2 className="text-white font-semibold text-lg">{conversation.name}</h2>
-                    <p className="text-[#22c55e] text-sm">{conversation.isOnline ? "Online" : "Offline"}</p>
+                    <p className={cn("text-sm", conversation.isOnline ? "text-[#22c55e]" : "text-gray-400")}>{conversation.isOnline ? "Online" : "Offline"}</p>
                 </div>
             </div>
             <div className="flex items-center gap-2">

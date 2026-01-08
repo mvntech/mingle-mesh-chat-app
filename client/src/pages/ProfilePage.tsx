@@ -76,20 +76,20 @@ export function ProfilePage() {
     }
 
     return (
-        <div className="flex h-screen bg-[#0a0a0f] overflow-hidden">
+        <div className="flex flex-col md:flex-row h-screen bg-[#0a0a0f] overflow-hidden">
             <Sidebar
                 activeNav="settings"
                 onNavChange={(id) => id !== "settings" && navigate("/")}
                 user={user}
             />
 
-            <div className="flex-1 overflow-y-auto flex items-center justify-center p-4 py-8">
+            <div className="flex-1 overflow-y-auto flex items-center justify-center p-4 py-8 pb-24 md:pb-8">
                 <div className="w-full max-w-md space-y-8">
                     <div className="flex justify-center">
                         <div className="relative">
                             <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-[#12121a] bg-[#111116]">
                                 <img
-                                    src={avatar || "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767875857/dummy-user_utzikg.jpg"}
+                                    src={avatar || "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767889266/dummy-user_ilqiiw.jpg"}
                                     alt="Profile"
                                     className="w-full h-full object-cover"
                                 />

@@ -11,6 +11,7 @@ import { GET_ME } from "../queries/getMe";
 import { GET_CHATS } from "../queries/getChats";
 import { MARK_AS_DELIVERED } from "../mutations/markAsDelivered";
 import { GET_MESSAGES } from "../queries/getMessages";
+import { cn } from "../lib/utils";
 
 export function MingleMeshChat() {
     const [activeNav, setActiveNav] = useState<string>("home");
@@ -90,40 +91,57 @@ export function MingleMeshChat() {
         };
     }, []);
 
+    const totalUnreadCount = chats.reduce((acc, chat) => acc + (chat.unreadCount || 0), 0);
+
     return (
-        <div className="flex h-screen bg-[#0a0a0f] overflow-hidden font-sans">
-            <Sidebar
-                activeNav={activeNav}
-            onNavChange={setActiveNav}
-                user={userData?.me}
-            />
-
-            <ConversationList
-                contacts={filteredChats.filter((chat) => !chat.isGroupChat)}
-                favorites={userData?.me?.favorites}
-                selectedId={selectedConversation?.id || ""}
-                onSelect={setSelectedConversation}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                loading={chatsLoading}
-                typingUsers={typingUsers}
-            />
-
-            {selectedConversation ? (
-                <ChatView
-                    conversation={selectedConversation}
-                    currentUserId={currentUserId}
-                    typingUsers={typingUsers[selectedConversation.id] || []}
-                    onLeaveChat={() => setSelectedConversation(null)}
+        <div className="flex flex-col md:flex-row h-screen bg-[#0a0a0f] overflow-hidden font-sans relative">
+            <div className={cn(
+                selectedConversation && "hidden md:block"
+            )}>
+                <Sidebar
+                    activeNav={activeNav}
+                    onNavChange={setActiveNav}
+                    user={userData?.me}
+                    unreadTotal={totalUnreadCount}
                 />
-            ) : (
-                <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0a0f] text-[#6b7280]">
-                    <div className="w-20 h-20 bg-[#1f1f2e] rounded-full flex items-center justify-center mb-4">
-                        <MessageCircle className="w-10 h-10" />
+            </div>
+
+            <div className={cn(
+                "flex-1 md:flex-none md:w-[340px] flex flex-col pb-20 md:pb-0",
+                selectedConversation ? "hidden md:flex" : "flex"
+            )}>
+                <ConversationList
+                    contacts={filteredChats.filter((chat) => !chat.isGroupChat)}
+                    favorites={userData?.me?.favorites}
+                    selectedId={selectedConversation?.id || ""}
+                    onSelect={setSelectedConversation}
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    loading={chatsLoading}
+                    typingUsers={typingUsers}
+                />
+            </div>
+
+            <div className={cn(
+                "flex-1 flex flex-col min-w-0 transition-all duration-300 md:pb-0",
+                !selectedConversation ? "hidden md:flex pb-20" : "flex pb-0"
+            )}>
+                {selectedConversation ? (
+                    <ChatView
+                        conversation={selectedConversation}
+                        currentUserId={currentUserId}
+                        typingUsers={typingUsers[selectedConversation.id] || []}
+                        onLeaveChat={() => setSelectedConversation(null)}
+                    />
+                ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0a0f] text-[#6b7280]">
+                        <div className="w-20 h-20 bg-[#1f1f2e] rounded-full flex items-center justify-center mb-3 ring-1 ring-[#2a2a35]">
+                            <MessageCircle className="w-10 h-10" />
+                        </div>
+                        <p>Select a conversation to start messaging</p>
                     </div>
-                    <p>Select a conversation to start messaging</p>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 }
