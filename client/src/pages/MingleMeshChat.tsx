@@ -61,6 +61,12 @@ export function MingleMeshChat() {
         })
         : [];
 
+    const filteredChats = activeNav === "favorites"
+        ? chats.filter(chat => userData?.me?.favorites?.includes(chat.id))
+        : activeNav === "chat"
+            ? chats.filter(chat => !userData?.me?.favorites?.includes(chat.id))
+            : chats;
+
     useEffect(() => {
         const socket = createSocket();
         const handleTyping = ({ chatId, user, isTyping }: { chatId: string, user: { username: string }, isTyping: boolean }) => {
@@ -88,12 +94,13 @@ export function MingleMeshChat() {
         <div className="flex h-screen bg-[#0a0a0f] overflow-hidden font-sans">
             <Sidebar
                 activeNav={activeNav}
-                onNavChange={setActiveNav}
+            onNavChange={setActiveNav}
                 user={userData?.me}
             />
 
             <ConversationList
-                contacts={chats.filter((chat) => !chat.isGroupChat)}
+                contacts={filteredChats.filter((chat) => !chat.isGroupChat)}
+                favorites={userData?.me?.favorites}
                 selectedId={selectedConversation?.id || ""}
                 onSelect={setSelectedConversation}
                 searchQuery={searchQuery}

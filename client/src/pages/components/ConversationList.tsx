@@ -17,7 +17,7 @@ function useDebounce<T>(value: T, delay: number): T {
     return debouncedValue;
 }
 
-export function ConversationList({ contacts, selectedId, onSelect, searchQuery, onSearchChange, typingUsers }: ConversationListProps) {
+export function ConversationList({ contacts, selectedId, onSelect, searchQuery, onSearchChange, typingUsers, favorites = [] }: ConversationListProps) {
     const debouncedSearchTerm = useDebounce(searchQuery, 500);
     const [searchUsers, { data, loading }] = useLazyQuery<SearchUsersData>(SEARCH_USERS);
     useEffect(() => {
@@ -102,6 +102,7 @@ export function ConversationList({ contacts, selectedId, onSelect, searchQuery, 
                                 key={user.id}
                                 conversation={user}
                                 isSelected={selectedId === user.id}
+                                isFavorite={favorites.includes(user.id)}
                                 onClick={async () => {
                                     try {
                                         const { data: chatData } = await createChat({
@@ -167,6 +168,7 @@ export function ConversationList({ contacts, selectedId, onSelect, searchQuery, 
                                                 key={contact.id}
                                                 conversation={contact}
                                                 isSelected={selectedId === contact.id}
+                                                isFavorite={favorites.includes(contact.id)}
                                                 onClick={() => onSelect(contact)}
                                                 isTyping={(typingUsers[contact.id] || []).length > 0}
                                             />

@@ -315,7 +315,7 @@ const resolvers = {
         markAsDelivered: async (parent, { messageId }, { user, io }) => {
             if (!user) throw new AuthenticationError("Not authenticated");
             const message = await Message.findById(messageId);
-            if (!message) throw new UserInputError("Message not found");
+            if (!message) throw new UserInputError("Message find failure");
 
             if (message.status === "sent" && message.sender.toString() !== user._id.toString()) {
                 message.status = "delivered";
@@ -341,6 +341,21 @@ const resolvers = {
                 .populate("sender")
                 .populate("chat")
                 .populate("readBy.user");
+        },
+
+        toggleFavorite: async (parent, { chatId }, { user }) => {
+            if (!user) throw new AuthenticationError("Not authenticated");
+            const userDoc = await User.findById(user._id);
+            if (!userDoc) throw new UserInputError("User not found");
+            const chatObjectId = new mongoose.Types.ObjectId(chatId);
+            const index = userDoc.favorites.indexOf(chatObjectId);
+            if (index === -1) {
+                userDoc.favorites.push(chatObjectId);
+            } else {
+                userDoc.favorites.splice(index, 1);
+            }
+            await userDoc.save();
+            return userDoc;
         },
     },
 

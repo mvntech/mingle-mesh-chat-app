@@ -27,6 +27,7 @@ export interface ConversationItemProps {
     isSelected: boolean;
     onClick: () => void;
     isTyping?: boolean;
+    isFavorite?: boolean;
 }
 
 export interface ConversationListProps {
@@ -37,6 +38,7 @@ export interface ConversationListProps {
     onSearchChange: (query: string) => void;
     loading?: boolean;
     typingUsers: Record<string, string[]>;
+    favorites?: string[];
 }
 
 export interface MessageInputProps {

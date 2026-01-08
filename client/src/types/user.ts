@@ -4,6 +4,7 @@ export interface UserProfile {
     email: string;
     avatar?: string | null;
     isOnline: boolean;
+    favorites: string[];
 }
 
 export interface GetMeData {

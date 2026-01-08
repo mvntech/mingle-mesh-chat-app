@@ -1,8 +1,8 @@
-import { Check, CheckCheck } from "lucide-react";
+import { Check, CheckCheck, Star } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { ConversationItemProps } from "../../types/chat";
 
-export function ConversationItem({ conversation, isSelected, onClick, isTyping }: ConversationItemProps) {
+export function ConversationItem({ conversation, isSelected, onClick, isTyping, isFavorite }: ConversationItemProps) {
     return (
         <button
             onClick={onClick}
@@ -21,6 +21,9 @@ export function ConversationItem({ conversation, isSelected, onClick, isTyping }
                 </div>
                 {conversation.isOnline && (
                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#22c55e] rounded-full border-2 border-[#1a1a24]" />
+                )}
+                {isFavorite && (
+                    <Star className="w-4 h-4 absolute top-0 text-[#2563eb] fill-[#2563eb]" />
                 )}
             </div>
 
@@ -44,7 +47,7 @@ export function ConversationItem({ conversation, isSelected, onClick, isTyping }
                                     {conversation.unreadCount}
                                 </span>
                             </div>
-                        ) : ( !!conversation.lastMessage && (
+                        ) : (!!conversation.lastMessage && (
                             <>
                                 {conversation.messageStatus === "read" && (
                                     <CheckCheck className="w-5 h-5 text-[#3b82f6]" />
@@ -56,7 +59,7 @@ export function ConversationItem({ conversation, isSelected, onClick, isTyping }
                                     <Check className="w-5 h-5 text-[#6b7280]" />
                                 )}
                             </>
-                            )
+                        )
                         )}
                     </div>
                 </div>

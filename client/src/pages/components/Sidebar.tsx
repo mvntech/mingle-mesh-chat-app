@@ -1,12 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { Home, MessageCircle, Settings, LogOut } from "lucide-react";
+import { Home, MessageCircle, Settings, LogOut, Star } from "lucide-react";
 import { cn } from "../../lib/utils.ts";
 import useLogout from "../../lib/logout";
 import type { SidebarProps } from "../../types/sidebar"
 
 const navItems = [
     { id: "home", icon: Home, path: "/" },
-    { id: "chat", icon: MessageCircle, path: "/" },
+    { id: "chat", icon: MessageCircle, path: "" },
+    { id: "favorites", icon: Star, path: "" },
     { id: "settings", icon: Settings, path: "/settings" },
 ];
 

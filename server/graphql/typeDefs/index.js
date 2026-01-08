@@ -10,6 +10,7 @@ const typeDefs = gql`
     lastSeen: String
     createdAt: String!
     updatedAt: String!
+    favorites: [ID!]!
   }
 
   type Chat {
@@ -98,6 +99,7 @@ const typeDefs = gql`
     ): Message!
     markAsRead(messageId: ID!): Message!
     markAsDelivered(messageId: ID!): Message!
+    toggleFavorite(chatId: ID!): User!
   }
 
   type Subscription {
