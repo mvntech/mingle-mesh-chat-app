@@ -37,7 +37,7 @@ export function Sidebar({ activeNav, onNavChange, user }: SidebarProps) {
                         />
                     ) : (
                         <img
-                            src="/dummy-user.jpeg"
+                            src="https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767875857/dummy-user_utzikg.jpg"
                             alt="Profile"
                             className="w-full h-full object-cover"
                         />

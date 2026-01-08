@@ -3,6 +3,7 @@ import { MingleMeshAppWrapper as MingleMeshChat } from "./pages/MingleMeshChat";
 import { SignUpPage } from "./pages/SignUpPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { AuthCallback } from "./pages/AuthCallback";
 import ProtectedRoute from "./lib/protected-route";
 import { Toaster } from "react-hot-toast";
 
@@ -29,6 +30,7 @@ export default function App() {
                     />
                     <Route path="/signup" element={<SignUpPage />} />
                     <Route path="/login" element={<LoginPage />} />
+                    <Route path="/auth-callback" element={<AuthCallback />} />
                 </Routes>
             </Router>
 

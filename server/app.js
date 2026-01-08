@@ -16,8 +16,11 @@ import { typeDefs, resolvers } from "./graphql/schema.js";
 import User from "./models/User.js";
 import jwt from "jsonwebtoken";
 import sanitizeHtml from "sanitize-html";
+import passport from "passport";
+import configurePassport from "./config/passport.js";
 
 dotenv.config();
+configurePassport();
 
 const app = express();
 const httpServer = createServer(app);
@@ -27,15 +30,21 @@ const pubsub = new PubSub();
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-const allowedOrigins = [CLIENT_URL, MONGODB_URI];
+const SERVER_URL = process.env.SERVER_URL || "http://localhost:5000";
+const allowedOrigins = [
+    CLIENT_URL,
+    SERVER_URL,
+    MONGODB_URI,
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5000",
+    "http://localhost:5173",
+    "http://localhost:5000"
+];
 
 app.use(
     cors({
         origin: (origin, callback) => {
-            if (!origin)
-                return callback(new Error("Origin required for security"), false);
-
-            if (allowedOrigins.includes(origin)) {
+            if (!origin || allowedOrigins.includes(origin)) {
                 return callback(null, true);
             }
             return callback(new Error("Blocked by CORS"), false);
@@ -72,6 +81,7 @@ app.use(
 );
 
 app.use(express.json());
+app.use(passport.initialize());
 
 const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -94,6 +104,28 @@ app.use("/graphql", (req, res, next) => {
     }
     next();
 });
+
+app.get("/auth/google", passport.authenticate("google", { scope: ["profile", "email"], session: false }));
+
+app.get(
+    "/auth/google/callback",
+    passport.authenticate("google", { failureRedirect: `${CLIENT_URL}/login`, session: false }),
+    (req, res) => {
+        const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_TOKEN_EXPIRE });
+        res.redirect(`${CLIENT_URL}/auth-callback?token=${token}`);
+    }
+);
+
+app.get("/auth/github", passport.authenticate("github", { scope: ["user:email"], session: false }));
+
+app.get(
+    "/auth/github/callback",
+    passport.authenticate("github", { failureRedirect: `${CLIENT_URL}/login`, session: false }),
+    (req, res) => {
+        const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_TOKEN_EXPIRE });
+        res.redirect(`${CLIENT_URL}/auth-callback?token=${token}`);
+    }
+);
 
 await connectDB();
 

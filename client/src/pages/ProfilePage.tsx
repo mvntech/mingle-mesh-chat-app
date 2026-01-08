@@ -89,7 +89,7 @@ export function ProfilePage() {
                         <div className="relative">
                             <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-[#12121a] bg-[#111116]">
                                 <img
-                                    src={avatar || "/dummy-user.jpeg"}
+                                    src={avatar || "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767875857/dummy-user_utzikg.jpg"}
                                     alt="Profile"
                                     className="w-full h-full object-cover"
                                 />
@@ -112,7 +112,7 @@ export function ProfilePage() {
                         </div>
                     </div>
 
-                        <div className="text-center space-y-1">
+                    <div className="text-center space-y-1">
                         <h1 className="text-xl md:text-2xl font-bold text-white">
                             Edit your profile
                         </h1>

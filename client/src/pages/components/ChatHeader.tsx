@@ -64,7 +64,7 @@ export function ChatHeader({ conversation, onLeaveChat }: ChatHeaderProps) {
                 <div className="relative">
                     <div className="w-12 h-12 rounded-full overflow-hidden">
                         <img
-                            src={conversation.avatar || "/dummy-user.jpeg"}
+                            src={conversation.avatar || "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767875857/dummy-user_utzikg.jpg"}
                             alt={conversation.name}
                             className="w-full h-full object-cover"
                         />
