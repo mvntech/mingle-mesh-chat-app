@@ -136,6 +136,35 @@ const resolvers = {
             }
         },
 
+        updateProfile: async (parent, { username, avatar }, { user, pubsub }) => {
+            if (!user) throw new AuthenticationError("Not authenticated");
+            const updateData = {};
+            if (username && username !== user.username) {
+                const existingUser = await User.findOne({ username: username.toLowerCase() });
+                if (existingUser) {
+                    throw new UserInputError("Username already in use");
+                }
+                updateData.username = username;
+            }
+            if (avatar !== undefined) {
+                updateData.avatar = avatar;
+            }
+            if (Object.keys(updateData).length === 0) {
+                return user;
+            }
+            const updatedUser = await User.findByIdAndUpdate(
+                user._id,
+                { $set: updateData },
+                { new: true }
+            );
+            if (pubsub) {
+                pubsub.publish("USER_STATUS_CHANGED", {
+                    userStatusChanged: updatedUser,
+                });
+            }
+            return updatedUser;
+        },
+
         createChat: async (parent, { participantIds, name, isGroupChat = false }, { user, io }) => {
             if (!user) throw new AuthenticationError("Not authenticated");
 

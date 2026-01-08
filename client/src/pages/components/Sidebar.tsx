@@ -1,20 +1,29 @@
+import { useNavigate } from "react-router-dom";
 import { Home, MessageCircle, Settings, LogOut } from "lucide-react";
 import { cn } from "../../lib/utils.ts";
 import useLogout from "../../lib/logout";
 import type { SidebarProps } from "../../types/sidebar"
 
 const navItems = [
-    { id: "home", icon: Home },
-    { id: "chat", icon: MessageCircle },
-    { id: "settings", icon: Settings },
+    { id: "home", icon: Home, path: "/" },
+    { id: "chat", icon: MessageCircle, path: "/" },
+    { id: "settings", icon: Settings, path: "/settings" },
 ];
 
 export function Sidebar({ activeNav, onNavChange, user }: SidebarProps) {
     const logout = useLogout();
+    const navigate = useNavigate();
+
     return (
         <div className="w-[100px] bg-[#12121a] flex flex-col items-center py-6 rounded-2xl m-3">
             <div className="mb-8">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#3b82f6]">
+                <button
+                    onClick={() => {
+                        onNavChange("settings");
+                        navigate("/settings");
+                    }}
+                    className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#3b82f6]"
+                >
                     {user?.avatar ? (
                         <img
                             src={user.avatar}
@@ -32,12 +41,7 @@ export function Sidebar({ activeNav, onNavChange, user }: SidebarProps) {
                             className="w-full h-full object-cover"
                         />
                     )}
-                    <img
-                        src="/dummy-user.jpeg"
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                    />
-                </div>
+                </button>
             </div>
 
             <nav className="flex-1 flex flex-col items-center gap-2">
@@ -47,7 +51,10 @@ export function Sidebar({ activeNav, onNavChange, user }: SidebarProps) {
                     return (
                         <button
                             key={item.id}
-                            onClick={() => onNavChange(item.id)}
+                            onClick={() => {
+                                onNavChange(item.id);
+                                navigate(item.path);
+                            }}
                             className={cn(
                                 "relative w-16 h-16 flex items-center justify-center rounded-xl transition-all duration-200",
                                 isActive

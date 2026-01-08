@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { MingleMeshAppWrapper as MingleMeshChat } from "./pages/MingleMeshChat";
 import { SignUpPage } from "./pages/SignUpPage";
 import { LoginPage } from "./pages/LoginPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import ProtectedRoute from "./lib/protected-route";
 import { Toaster } from "react-hot-toast";
 
@@ -15,6 +16,14 @@ export default function App() {
                         element={
                             <ProtectedRoute>
                                 <MingleMeshChat />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/settings"
+                        element={
+                            <ProtectedRoute>
+                                <ProfilePage />
                             </ProtectedRoute>
                         }
                     />
