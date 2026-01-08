@@ -35,7 +35,7 @@ export function ConversationItem({ conversation, isSelected, onClick, isTyping }
                 </div>
                 <div className="flex items-center justify-between mt-0.5">
                     <span className={cn("text-sm truncate", isTyping ? "text-[#3b82f6]" : "text-[#6b7280]")}>
-                        {isTyping ? "Typing..." : conversation.lastMessage}
+                        {isTyping ? "Typing..." : conversation.lastMessage || "Message to start chatting"}
                     </span>
                     <div className="flex items-center flex-shrink-0">
                         {(conversation.unreadCount ?? 0) > 0 ? (
@@ -44,7 +44,7 @@ export function ConversationItem({ conversation, isSelected, onClick, isTyping }
                                     {conversation.unreadCount}
                                 </span>
                             </div>
-                        ) : (
+                        ) : ( !!conversation.lastMessage && (
                             <>
                                 {conversation.messageStatus === "read" && (
                                     <CheckCheck className="w-5 h-5 text-[#3b82f6]" />
@@ -56,6 +56,7 @@ export function ConversationItem({ conversation, isSelected, onClick, isTyping }
                                     <Check className="w-5 h-5 text-[#6b7280]" />
                                 )}
                             </>
+                            )
                         )}
                     </div>
                 </div>

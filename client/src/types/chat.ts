@@ -11,13 +11,15 @@ export interface Conversation {
 }
 
 export interface ChatHeaderProps {
-    conversation: Conversation
+    conversation: Conversation;
+    onLeaveChat?: () => void;
 }
 
 export interface ChatViewProps {
     conversation: Conversation;
     currentUserId: string | null;
     typingUsers: string[];
+    onLeaveChat?: () => void;
 }
 
 export interface ConversationItemProps {

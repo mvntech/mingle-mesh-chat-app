@@ -12,7 +12,7 @@ import { MARK_AS_READ } from "../../mutations/markAsRead";
 import type { Message, GetMessagesData, SendMessageData, SendMessageVars } from "../../types/message";
 import { MESSAGE_FRAGMENT } from "../../fragments/message";
 
-export function ChatView({ conversation, currentUserId, typingUsers }: ChatViewProps) {
+export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat }: ChatViewProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [inputValue, setInputValue] = useState("");
     const typingTimeoutRef = useRef<any>(null);
@@ -133,7 +133,7 @@ export function ChatView({ conversation, currentUserId, typingUsers }: ChatViewP
     if (loading && !data)
         return (
             <div className="flex-1 flex flex-col bg-[#0a0a0f] my-3 mr-3 rounded-2xl overflow-hidden">
-                <ChatHeader conversation={conversation} />
+                <ChatHeader conversation={conversation} onLeaveChat={onLeaveChat} />
 
                 <div className="flex-1 p-6 space-y-4">
                     <div className="max-w-[60%] bg-[#111116] rounded-2xl p-4">
@@ -164,7 +164,7 @@ export function ChatView({ conversation, currentUserId, typingUsers }: ChatViewP
 
     return (
         <div className="flex-1 flex flex-col bg-[#0a0a0f] my-3 mr-3 rounded-2xl overflow-hidden">
-            <ChatHeader conversation={conversation} />
+            <ChatHeader conversation={conversation} onLeaveChat={onLeaveChat} />
 
             <div className="flex-1 overflow-y-auto p-6 space-y-2 scrollbar-thin scrollbar-thumb-[#1f1f2e]">
                 {[...(data?.getMessages || [])]

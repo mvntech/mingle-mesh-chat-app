@@ -107,6 +107,7 @@ export function MingleMeshChat() {
                     conversation={selectedConversation}
                     currentUserId={currentUserId}
                     typingUsers={typingUsers[selectedConversation.id] || []}
+                    onLeaveChat={() => setSelectedConversation(null)}
                 />
             ) : (
                 <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0a0f] text-[#6b7280]">
