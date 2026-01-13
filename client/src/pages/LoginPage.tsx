@@ -56,7 +56,7 @@ export function LoginPage() {
 
                 <div className="flex flex-col items-center mb-6 md:mb-8">
                     <div className="w-14 h-14 md:w-16 md:h-16 bg-[#0A0A0F] rounded-2xl flex items-center justify-center mb-3 md:mb-4">
-                        <img src="/icon.png" alt="Logo" />
+                        <img src="/icon-192.png" alt="Logo" />
                     </div>
                     <h1 className="text-xl md:text-2xl font-bold text-white">
                         Mingle Mesh

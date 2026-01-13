@@ -7,10 +7,12 @@ const LoginPage = lazy(() => import("./pages/LoginPage").then(module => ({ defau
 const AuthCallback = lazy(() => import("./pages/AuthCallback").then(module => ({ default: module.AuthCallback })));
 import Loader from "./pages/components/Loader";
 import ProtectedRoute from "./lib/protected-route";
+import PWAPrompt from "./pages/components/PWAPrompt";
 
 export default function App() {
     return (
         <>
+            <PWAPrompt />
             <Suspense fallback={<Loader message="Loading..." />}>
                 <Router>
                     <Routes>
