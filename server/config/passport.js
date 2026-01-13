@@ -33,6 +33,14 @@ const configurePassport = () => {
                     });
                     done(null, user);
                 } catch (error) {
+                    if (error.code === 11000) {
+                        try {
+                            const user = await User.findOne({ $or: [{ googleId: id }, { email }] });
+                            if (user) return done(null, user);
+                        } catch (error) {
+                            return done(error, null);
+                        }
+                    }
                     done(error, null);
                 }
             }
@@ -48,7 +56,7 @@ const configurePassport = () => {
             },
             async (accessToken, refreshToken, profile, done) => {
                 const { id, username, emails, photos } = profile;
-                const email = emails?.[0]?.value || `${username}@github.com`;
+                const email = emails?.[0]?.value || `no-email-${id}@github.placeholder.com`;
                 try {
                     let user = await User.findOne({
                         $or: [{ githubId: id }, { email }]
@@ -68,6 +76,14 @@ const configurePassport = () => {
                     });
                     done(null, user);
                 } catch (error) {
+                    if (error.code === 11000) {
+                        try {
+                            const user = await User.findOne({ $or: [{ githubId: id }, { email }] });
+                            if (user) return done(null, user);
+                        } catch (error) {
+                            return done(error, null);
+                        }
+                    }
                     done(error, null);
                 }
             }

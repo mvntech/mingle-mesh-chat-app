@@ -7,6 +7,10 @@ export interface UserProfile {
     favorites: string[];
 }
 
+export interface ProfilePageProps {
+    user?: UserProfile | null;
+}
+
 export interface GetMeData {
     me: UserProfile;
 }

@@ -1,48 +1,23 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
+import sanitizeHtml from "sanitize-html";
 
 const messageSchema = new mongoose.Schema(
     {
-        sender: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User',
-            required: true,
-        },
+        sender: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
         content: {
             type: String,
             trim: true,
+            set: (v) => sanitizeHtml(v, { allowedTags: [], allowedAttributes: {} }),
         },
-        fileUrl: {
-            type: String,
-            trim: true,
-        },
-        fileType: {
-            type: String,
-            trim: true,
-        },
-        fileName: {
-            type: String,
-            trim: true,
-        },
-        chat: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Chat',
-            required: true,
-        },
-        status: {
-            type: String,
-            enum: ["sent", "delivered"],
-            default: "sent",
-        },
+        fileUrl: { type: String, trim: true },
+        fileType: { type: String, trim: true },
+        fileName: { type: String, trim: true },
+        chat: { type: mongoose.Schema.Types.ObjectId, ref: "Chat", required: true },
+        status: { type: String, enum: ["sent", "delivered"], default: "sent" },
         readBy: [
             {
-                user: {
-                    type: mongoose.Schema.Types.ObjectId,
-                    ref: 'User',
-                },
-                readAt: {
-                    type: Date,
-                    default: Date.now,
-                },
+                user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+                readAt: { type: Date, default: Date.now },
             },
         ],
     },
@@ -55,7 +30,8 @@ const messageSchema = new mongoose.Schema(
 
 messageSchema.index({ chat: 1, createdAt: -1 });
 messageSchema.index({ sender: 1 });
+messageSchema.index({ chat: 1, status: 1 });
 
-const Message = mongoose.model('Message', messageSchema);
+const Message = mongoose.model("Message", messageSchema);
 
 export default Message;

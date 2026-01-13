@@ -1,19 +1,17 @@
-import { useNavigate } from "react-router-dom";
-import { Home, MessageCircle, Settings, LogOut, Star } from "lucide-react";
+import { Home, MessageSquareText, Settings, Star, LogOut } from "lucide-react";
 import { cn } from "../../lib/utils.ts";
 import useLogout from "../../lib/logout";
 import type { SidebarProps } from "../../types/sidebar"
 
 const navItems = [
-    { id: "home", icon: Home, path: "/", label: "Home" },
-    { id: "chat", icon: MessageCircle, path: "", label: "Chats" },
-    { id: "favorites", icon: Star, path: "", label: "Favorites" },
-    { id: "settings", icon: Settings, path: "/settings", label: "Settings" },
+    { id: "home", icon: Home, label: "Home" },
+    { id: "chat", icon: MessageSquareText, label: "Chats" },
+    { id: "favorites", icon: Star, label: "Favorites" },
+    { id: "settings", icon: Settings, label: "Settings" },
 ];
 
 export function Sidebar({ activeNav, onNavChange, user, unreadTotal }: SidebarProps) {
     const logout = useLogout();
-    const navigate = useNavigate();
 
     return (
         <div className={cn(
@@ -22,10 +20,7 @@ export function Sidebar({ activeNav, onNavChange, user, unreadTotal }: SidebarPr
         )}>
             <div className="hidden md:block mb-8">
                 <button
-                    onClick={() => {
-                        onNavChange("settings");
-                        navigate("/settings");
-                    }}
+                    onClick={() => onNavChange("settings")}
                     className="w-12 h-12 lg:w-16 lg:h-16 rounded-full overflow-hidden border-2 border-[#3b82f6]"
                 >
                     {user?.avatar ? (
@@ -33,10 +28,6 @@ export function Sidebar({ activeNav, onNavChange, user, unreadTotal }: SidebarPr
                             src={user.avatar}
                             alt="Profile"
                             className="w-full h-full object-cover"
-                            onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                            }}
                         />
                     ) : (
                         <img
@@ -59,7 +50,6 @@ export function Sidebar({ activeNav, onNavChange, user, unreadTotal }: SidebarPr
                             key={item.id}
                             onClick={() => {
                                 onNavChange(item.id);
-                                navigate(item.path);
                             }}
                             className={cn(
                                 "flex flex-col items-center justify-center gap-1 group transition-all duration-200",
@@ -75,7 +65,7 @@ export function Sidebar({ activeNav, onNavChange, user, unreadTotal }: SidebarPr
                             )}>
                                 <Icon className="w-5 h-5 md:w-6 md:h-6" />
                                 {hasBadge && (
-                                    <div className="absolute -top-1 -right-1 md:-top-1 md:-right-1 bg-[#3b82f6] text-white text-[10px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center">
+                                    <div className="absolute -top-1 -right-1 md:-top-1 md:-right-1 bg-[#2563eb] text-white text-[10px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center">
                                         {unreadTotal}
                                     </div>
                                 )}

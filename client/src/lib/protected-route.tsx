@@ -1,9 +1,5 @@
-import React from "react";
 import { Navigate } from "react-router-dom";
-
-interface ProtectedRouteProps {
-    children: React.ReactNode;
-}
+import type { ProtectedRouteProps } from "../types/auth.ts";
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     const token = localStorage.getItem("token");

@@ -8,6 +8,7 @@ export interface CloudinarySignatureData {
 }
 
 export interface UploadResult {
+    public_id: string;
     secure_url: string;
     resource_type: string;
     original_filename: string;

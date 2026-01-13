@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Search, Loader2, MessageSquareText, UserRoundPlus } from "lucide-react";
+import { useState, useEffect, memo } from "react";
+import { Search, Loader2, UserRoundPlus } from "lucide-react";
 import { ConversationItem } from "./ConversationItem"
 import { useMutation } from "@apollo/client/react";
 import { useLazyQuery } from "@apollo/client/react";
@@ -17,7 +17,7 @@ function useDebounce<T>(value: T, delay: number): T {
     return debouncedValue;
 }
 
-export function ConversationList({ contacts, selectedId, onSelect, searchQuery, onSearchChange, loading: initialLoading, typingUsers, favorites = [] }: ConversationListProps) {
+export const ConversationList = memo(function ConversationList({ contacts, selectedId, onSelect, searchQuery, onSearchChange, loading: initialLoading, typingUsers, favorites = [] }: ConversationListProps) {
     const debouncedSearchTerm = useDebounce(searchQuery, 500);
     const [searchUsers, { data, loading, error }] = useLazyQuery<SearchUsersData>(SEARCH_USERS);
     useEffect(() => {
@@ -36,9 +36,7 @@ export function ConversationList({ contacts, selectedId, onSelect, searchQuery, 
             time: "",
             isGroupChat: false,
         })) || [];
-
     const isSearching = searchQuery.trim().length > 0;
-
     if ((initialLoading || (loading && !isSearching)) && contacts.length === 0) {
         const skeletonItems = Array.from({ length: 6 });
 
@@ -69,7 +67,6 @@ export function ConversationList({ contacts, selectedId, onSelect, searchQuery, 
             </div>
         );
     }
-
 
     return (
         <div className="w-full h-full bg-[#12121a] flex flex-col my-0 md:my-3 md:rounded-2xl overflow-hidden border-x md:border border-[#1f1f2e]">
@@ -169,8 +166,8 @@ export function ConversationList({ contacts, selectedId, onSelect, searchQuery, 
                                                     return;
                                                 }
                                                 onSelect(user);
-                                            } catch (err) {
-                                                console.error("Error creating chat:", err);
+                                            } catch (error) {
+                                                console.error("Error creating chat:", error);
                                                 onSelect(user);
                                             }
                                         }}
@@ -210,9 +207,9 @@ export function ConversationList({ contacts, selectedId, onSelect, searchQuery, 
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-[#6b7280]">
                                 <div className="bg-[#1f1f2e] p-4 rounded-full mb-3 ring-1 ring-[#2a2a35]">
-                                    <MessageSquareText className="w-6 h-6" />
+                                    <UserRoundPlus className="w-6 h-6" />
                                 </div>
-                                <p className="text-base">No users found</p>
+                                <p className="text-base">Search for users to start a chat.</p>
                             </div>
                         )}
                     </>
@@ -221,4 +218,4 @@ export function ConversationList({ contacts, selectedId, onSelect, searchQuery, 
             </div >
         </div >
     );
-}
+});

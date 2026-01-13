@@ -1,17 +1,19 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useQuery, useMutation, useApolloClient } from "@apollo/client/react";
+import toast from "react-hot-toast";
+import { Camera, Video, File, MessageSquareText } from "lucide-react";
+import { useSocket } from "../context/SocketContext";
+import { cn } from "../lib/utils";
 import { Sidebar } from "./components/Sidebar";
 import { ConversationList } from "./components/ConversationList";
+import { ProfilePage } from "./ProfilePage";
 import { ChatView } from "./components/ChatView";
-import { useQuery, useMutation, useApolloClient } from "@apollo/client/react";
-import { MessageCircle, Camera, Video, File } from "lucide-react";
-import createSocket from "../lib/socket";
-import type { GetMeData } from "../types/user";
-import { type Conversation, type GetChatsData } from "../types/chat";
 import { GET_ME } from "../queries/getMe";
 import { GET_CHATS } from "../queries/getChats";
-import { MARK_AS_DELIVERED } from "../mutations/markAsDelivered";
 import { GET_MESSAGES } from "../queries/getMessages";
-import { cn } from "../lib/utils";
+import { MARK_AS_DELIVERED } from "../mutations/markAsDelivered";
+import type { GetMeData } from "../types/user";
+import { type Conversation, type GetChatsData } from "../types/chat";
 
 export function MingleMeshChat() {
     const [activeNav, setActiveNav] = useState<string>("home");
@@ -21,6 +23,7 @@ export function MingleMeshChat() {
     const [typingUsers, setTypingUsers] = useState<Record<string, string[]>>({});
     const { data, loading: chatsLoading } = useQuery<GetChatsData>(GET_CHATS);
     const { data: userData } = useQuery<GetMeData>(GET_ME);
+    const { socket } = useSocket();
     const currentUserId: string | null = userData?.me?.id ?? localStorage.getItem("userId");
     const chats: Conversation[] = data
         ? data.getChats.map((chat) => {
@@ -61,15 +64,19 @@ export function MingleMeshChat() {
             };
         })
         : [];
-
-    const filteredChats = activeNav === "favorites"
-        ? chats.filter(chat => userData?.me?.favorites?.includes(chat.id))
-        : activeNav === "chat"
-            ? chats.filter(chat => !userData?.me?.favorites?.includes(chat.id))
-            : chats;
-
+    const filteredChats = useMemo(() => {
+        if (!userData?.me) return chats;
+        switch (activeNav) {
+            case "favorites":
+                return chats.filter(chat => userData.me.favorites?.includes(chat.id));
+            case "chat":
+                return chats.filter(chat => !userData.me.favorites?.includes(chat.id));
+            default:
+                return chats;
+        }
+    }, [activeNav, chats, userData]);
     useEffect(() => {
-        const socket = createSocket();
+        if (!socket) return;
         const handleTyping = ({ chatId, user, isTyping }: { chatId: string, user: { username: string }, isTyping: boolean }) => {
             setTypingUsers(prev => {
                 const currentTypers = prev[chatId] || [];
@@ -83,15 +90,27 @@ export function MingleMeshChat() {
                 return prev;
             });
         };
-
         socket.on("typing", handleTyping);
-
         return () => {
             socket.off("typing", handleTyping);
+            setTypingUsers({});
         };
-    }, []);
-
+    }, [socket]);
     const totalUnreadCount = chats.reduce((acc, chat) => acc + (chat.unreadCount || 0), 0);
+    useEffect(() => {
+        if (!socket) return;
+        const onConnect = () => toast.dismiss("connection");
+        const onDisconnect = () => toast.error("Connection lost. Reconnecting...", { id: "connection" });
+        const onConnectError = () => toast.error("Connection error. Reconnecting...", { id: "connection" });
+        socket.on("connect", onConnect);
+        socket.on("disconnect", onDisconnect);
+        socket.on("connect_error", onConnectError);
+        return () => {
+            socket.off("connect", onConnect);
+            socket.off("disconnect", onDisconnect);
+            socket.off("connect_error", onConnectError);
+        };
+    }, [socket]);
 
     return (
         <div className="flex flex-col md:flex-row h-screen bg-[#0a0a0f] overflow-hidden font-sans relative">
@@ -108,7 +127,8 @@ export function MingleMeshChat() {
 
             <div className={cn(
                 "flex-1 md:flex-none md:w-[340px] flex flex-col pb-20 md:pb-0",
-                selectedConversation ? "hidden md:flex" : "flex"
+                selectedConversation ? "hidden md:flex" : "flex",
+                activeNav === "settings" && "hidden md:hidden"
             )}>
                 <ConversationList
                     contacts={filteredChats.filter((chat) => !chat.isGroupChat)}
@@ -124,9 +144,11 @@ export function MingleMeshChat() {
 
             <div className={cn(
                 "flex-1 flex flex-col min-w-0 transition-all duration-300 md:pb-0",
-                !selectedConversation ? "hidden md:flex pb-20" : "flex pb-0"
+                !selectedConversation && activeNav !== "settings" ? "hidden md:flex pb-20" : "flex pb-0"
             )}>
-                {selectedConversation ? (
+                {activeNav === "settings" ? (
+                    <ProfilePage user={userData?.me} />
+                ) : selectedConversation ? (
                     <ChatView
                         conversation={selectedConversation}
                         currentUserId={currentUserId}
@@ -136,7 +158,7 @@ export function MingleMeshChat() {
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0a0f] text-[#6b7280]">
                         <div className="w-20 h-20 bg-[#1f1f2e] rounded-full flex items-center justify-center mb-3 ring-1 ring-[#2a2a35]">
-                            <MessageCircle className="w-10 h-10" />
+                            <MessageSquareText className="w-10 h-10" />
                         </div>
                         <p>Select a conversation to start messaging</p>
                     </div>
@@ -151,28 +173,15 @@ export function MingleMeshAppWrapper() {
     const { data: userData } = useQuery<GetMeData>(GET_ME);
     const currentUserId = userData?.me?.id ?? localStorage.getItem("userId");
     const { data } = useQuery<GetChatsData>(GET_CHATS);
+    const { socket } = useSocket();
     const [markAsDelivered] = useMutation(MARK_AS_DELIVERED);
     const dataRef = useRef<GetChatsData | null>(null);
     useEffect(() => {
         dataRef.current = data ?? null;
     }, [data]);
-
     useEffect(() => {
-        if (!currentUserId) return;
-        const socket = createSocket();
-
-        const joinRooms = () => {
-            const chatIds = (dataRef.current?.getChats || []).map((c) => c.id);
-            if (chatIds.length > 0) {
-                socket.emit("join-chats", chatIds);
-            }
-        };
-
-        socket.on("connect", () => {
-            joinRooms();
-        });
-
-        socket.on("new-message", (payload: { chatId: string; message: any }) => {
+        if (!currentUserId || !socket) return;
+        const onNewMessage = (payload: { chatId: string; message: any }) => {
             const { chatId, message: rawMessage } = payload;
 
             const normalizeUser = (u: any) => u ? ({
@@ -180,7 +189,6 @@ export function MingleMeshAppWrapper() {
                 id: String(u.id || u._id || ''),
                 __typename: "User"
             }) : null;
-
             const message = {
                 ...rawMessage,
                 __typename: "Message",
@@ -196,9 +204,8 @@ export function MingleMeshAppWrapper() {
                     user: normalizeUser(r.user)
                 }))
             };
-
             if (message.sender?.id !== currentUserId) {
-                markAsDelivered({ variables: { messageId: message.id } }).catch(e => console.error("Mark delivered failed", e));
+                markAsDelivered({ variables: { messageId: message.id } }).catch(error => console.error("Mark delivered failed", error));
             }
             try {
                 const chatIdent = client.cache.identify({ __typename: "Chat", id: chatId });
@@ -207,10 +214,7 @@ export function MingleMeshAppWrapper() {
                         id: chatIdent,
                         fields: {
                             unreadCount(prev = 0) {
-                                if (message.sender?.id !== currentUserId) {
-                                    return prev + 1;
-                                }
-                                return prev;
+                                return message.sender?.id !== currentUserId ? prev + 1 : prev;
                             },
                             lastMessage() {
                                 return message;
@@ -235,20 +239,18 @@ export function MingleMeshAppWrapper() {
                             });
                         }
                     }
-                } catch (e) { }
-            } catch (e) {
-                console.error("Cache update error:", e);
+                } catch (error) { }
+            } catch (error) {
+                console.error("Cache update error:", error);
             }
-        });
-
-        socket.on("new-chat", (rawChat: any) => {
+        };
+        const onNewChat = (rawChat: any) => {
             try {
                 const normalizeUser = (u: any) => u ? ({
                     ...u,
                     id: String(u.id || u._id || ''),
                     __typename: "User"
                 }) : null;
-
                 const newChat = {
                     ...rawChat,
                     __typename: "Chat",
@@ -297,12 +299,11 @@ export function MingleMeshAppWrapper() {
                     }
                 });
                 socket.emit("join-chats", [newChat.id]);
-            } catch (e) {
-                console.error("Cache update error (new-chat):", e);
+            } catch (error) {
+                console.error("Cache update error (new-chat):", error);
             }
-        });
-
-        socket.on("message-delivered", (payload: { chatId: string, messageId: string, status: string }) => {
+        };
+        const onMessageDelivered = (payload: { chatId: string, messageId: string, status: string }) => {
             try {
                 const { chatId, messageId, status } = payload;
                 const messageIdent = client.cache.identify({ __typename: "Message", id: messageId });
@@ -325,12 +326,11 @@ export function MingleMeshAppWrapper() {
                         });
                     }
                 }
-            } catch (e) {
-                console.error("Cache update error:", e);
+            } catch (error) {
+                console.error("Cache update error:", error);
             }
-        });
-
-        socket.on("message-read", (payload: {
+        };
+        const onMessageRead = (payload: {
             chatId?: string;
             messageId?: string;
             userId?: string;
@@ -360,10 +360,9 @@ export function MingleMeshAppWrapper() {
                             },
                         });
                     }
-                } catch (e) {
-                    console.error("Failed to update message readBy in cache:", e);
+                } catch (error) {
+                    console.error("Failed to update message readBy in cache:", error);
                 }
-
                 if (chatId) {
                     try {
                         const chatIdent = client.cache.identify({
@@ -380,11 +379,10 @@ export function MingleMeshAppWrapper() {
                                 },
                             });
                         }
-                    } catch (e) {
-                        console.error("Failed to update chat messageStatus:", e);
+                    } catch (error) {
+                        console.error("Failed to update chat messageStatus:", error);
                     }
                 }
-
                 if (String(userId) === String(currentUserId) && chatId) {
                     try {
                         const chatIdent = client.cache.identify({
@@ -401,37 +399,42 @@ export function MingleMeshAppWrapper() {
                                 },
                             });
                         }
-                    } catch (e) {
-                        console.error("Failed to update chat unreadCount in cache:", e);
+                    } catch (error) {
+                        console.error("Failed to update chat unreadCount in cache:", error);
                     }
                 }
-            } catch (e) {
-                console.error("message-read handler error:", e);
-            }
-        });
-
-        return () => {
-            socket.off("message-read");
-            socket.off("message-delivered");
-            socket.off("new-message");
-            socket.off("new-chat");
-            socket.off("connect");
-            try {
-                if (socket.connected) socket.disconnect();
-            } catch (e) {
-                console.error(e);
+            } catch (error) {
+                console.error("message-read handler error:", error);
             }
         };
-    }, [client, currentUserId, markAsDelivered]);
+        socket.on("new-message", onNewMessage);
+        socket.on("new-chat", onNewChat);
+        socket.on("message-delivered", onMessageDelivered);
+        socket.on("message-read", onMessageRead);
+        return () => {
+            socket.off("new-message", onNewMessage);
+            socket.off("new-chat", onNewChat);
+            socket.off("message-delivered", onMessageDelivered);
+            socket.off("message-read", onMessageRead);
+        };
+    }, [client, currentUserId, markAsDelivered, socket]);
 
     useEffect(() => {
-        if (!data?.getChats || !currentUserId) return;
-        const socket = createSocket();
-        const chatIds = data.getChats.map((c) => c.id);
-        if (chatIds.length > 0) {
-            socket.emit("join-chats", chatIds);
+        if (!data?.getChats || !currentUserId || !socket) return;
+        const join = () => {
+            const chatIds = data.getChats.map((c) => c.id);
+            if (chatIds.length > 0) {
+                socket.emit("join-chats", chatIds);
+            }
+        };
+        if (socket.connected) {
+            join();
         }
-    }, [data, currentUserId]);
+        socket.on("connect", join);
+        return () => {
+            socket.off("connect", join);
+        };
+    }, [data, currentUserId, socket]);
 
     return <MingleMeshChat />;
 }

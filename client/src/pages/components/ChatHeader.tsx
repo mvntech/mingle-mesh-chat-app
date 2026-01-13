@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { toast } from "react-hot-toast";
 import { Star, Trash2, ChevronLeft } from "lucide-react";
+import { useSocket } from "../../context/SocketContext";
 import { ConfirmationModal } from "./ConfirmationModal";
 import type { GetMeData } from "../../types/user";
 import type { ChatHeaderProps } from "../../types/chat";
@@ -13,9 +14,9 @@ import { cn } from "../../lib/utils.ts";
 
 export function ChatHeader({ conversation, onLeaveChat }: ChatHeaderProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const { socket } = useSocket();
     const { data: userData } = useQuery<GetMeData>(GET_ME);
     const isFavorite = userData?.me?.favorites?.includes(conversation.id);
-
     const [toggleFavorite, { loading: toggleLoading }] = useMutation(TOGGLE_FAVORITE, {
         variables: { chatId: conversation.id },
         optimisticResponse: userData?.me ? {
@@ -28,13 +29,12 @@ export function ChatHeader({ conversation, onLeaveChat }: ChatHeaderProps) {
             }
         } : undefined,
         onCompleted: () => {
-            toast.success(!isFavorite ? "Removed from favorites" : "Added to favorites");
+            toast.success(isFavorite ? "Added to favorites" : "Removed from favorites");
         },
         onError: (error) => {
             toast.error(error.message || "Failed to update favorites");
         }
     });
-
     const [leaveChat, { loading }] = useMutation(LEAVE_CHAT, {
         variables: { chatId: conversation.id },
         update: (cache: any) => {
@@ -51,6 +51,9 @@ export function ChatHeader({ conversation, onLeaveChat }: ChatHeaderProps) {
             }
         },
         onCompleted: () => {
+            if (socket) {
+                socket.emit("leave-chat", conversation.id);
+            }
             toast.success("Left the chat successfully");
             onLeaveChat?.();
         },

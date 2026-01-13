@@ -22,6 +22,12 @@ const chatSchema = new mongoose.Schema(
                 required: true,
             },
         ],
+        deletedBy: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User",
+            },
+        ],
         lastMessage: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Message",
@@ -46,8 +52,7 @@ chatSchema.methods.setUnreadCount = function (value) {
     this._unreadCount = value;
 };
 
-chatSchema.index({ participants: 1 });
-chatSchema.index({ updatedAt: -1 });
+chatSchema.index({ participants: 1, updatedAt: -1 });
 
 const Chat = mongoose.model("Chat", chatSchema);
 

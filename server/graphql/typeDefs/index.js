@@ -1,4 +1,4 @@
-import { gql } from "apollo-server-express";
+import { gql } from "graphql-tag";
 
 const typeDefs = gql`
   type User {
@@ -66,7 +66,7 @@ const typeDefs = gql`
   type Query {
       me: User
       getUser(id: ID!): User
-      getUsers(search: String): [User!]!
+      getUsers(search: String, limit: Int = 20, offset: Int = 0): [User!]!
 
       getChats: [Chat!]!
       getChat(id: ID!): Chat
@@ -105,7 +105,7 @@ const typeDefs = gql`
   type Subscription {
       messageAdded(chatId: ID!): Message!
       typingStatus(chatId: ID!): TypingIndicator!
-      userStatusChanged: User!
+      userStatusChanged(userIds: [ID!]): User!
       chatUpdated: Chat!
   }
 `;

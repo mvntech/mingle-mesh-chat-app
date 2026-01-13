@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { ChatHeader } from "./ChatHeader"
 import { MessageBubble } from "./MessageBubble"
 import { MessageInput } from "./MessageInput"
-import createSocket from "../../lib/socket";
+import { useSocket } from "../../context/SocketContext";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { useApolloClient } from "@apollo/client/react";
 import type { ChatViewProps } from "../../types/chat.ts";
@@ -13,39 +13,41 @@ import type { Message, GetMessagesData, SendMessageData, SendMessageVars } from 
 import { MESSAGE_FRAGMENT } from "../../fragments/message";
 
 export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat }: ChatViewProps) {
+    const { socket } = useSocket();
     const scrollRef = useRef<HTMLDivElement>(null);
     const [inputValue, setInputValue] = useState("");
     const typingTimeoutRef = useRef<any>(null);
     const handleInputChange = (value: string) => {
         setInputValue(value);
-        const socket = createSocket();
-
-        socket.emit("typing", { chatId: conversation.id, isTyping: true });
+        if (socket) {
+            socket.emit("typing", { chatId: conversation.id, isTyping: true });
+        }
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = setTimeout(() => {
-            socket.emit("typing", { chatId: conversation.id, isTyping: false });
+            if (socket) socket.emit("typing", { chatId: conversation.id, isTyping: false });
         }, 2000);
     };
-
     const { data, loading, error } = useQuery<GetMessagesData>(GET_MESSAGES, {
         variables: { chatId: conversation.id },
-        fetchPolicy: "cache-and-network",
+        fetchPolicy: "cache-first",
     });
     const [sendMessage] = useMutation<SendMessageData, SendMessageVars>(SEND_MESSAGE);
     const [markAsRead] = useMutation(MARK_AS_READ);
     const client = useApolloClient();
     const markedRef = useRef<Record<string, boolean>>({});
-
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollIntoView({ behavior: "smooth" });
         }
     }, [data?.getMessages]);
-
+    const messages = useMemo(() => {
+        return [...(data?.getMessages || [])]
+            .slice()
+            .reverse();
+    }, [data?.getMessages]);
     const handleSendMessage = async (text: string, fileData?: { fileUrl: string, fileType: string, fileName: string }) => {
         if (!text.trim() && !fileData) return;
         if (!conversation.id) return;
-
         try {
             await sendMessage({
                 variables: {
@@ -78,7 +80,6 @@ export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat
                 },
                 update: (cache, { data: mutationData }) => {
                     if (!mutationData?.sendMessage) return;
-
                     cache.modify({
                         fields: {
                             getMessages(existingMessages = []) {
@@ -97,7 +98,6 @@ export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat
             console.error("Error sending message:", error);
         }
     };
-
     useEffect(() => {
         if (!data?.getMessages || !currentUserId) return;
         const unreadMessages = data.getMessages.filter((msg: Message) => {
@@ -108,7 +108,6 @@ export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat
             );
             return !isOwn && !alreadyReadByMe && !markedRef.current[msg.id];
         });
-
         unreadMessages.forEach((msg: any) => {
             markedRef.current[msg.id] = true;
             markAsRead({ variables: { messageId: msg.id } })
@@ -123,8 +122,8 @@ export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat
                         });
                     }
                 })
-                .catch((err) => {
-                    console.error("markAsRead error:", err);
+                .catch((error) => {
+                    console.error("markAsRead error:", error);
                     markedRef.current[msg.id] = false;
                 });
         });
@@ -191,50 +190,47 @@ export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat
                         <p className="text-sm">Say hello!</p>
                     </div>
                 )}
-                {[...(data?.getMessages || [])]
-                    .slice()
-                    .reverse()
-                    .map((msg: Message) => {
-                        const senderId = msg?.sender?.id ?? null;
-                        const date = msg?.createdAt ? new Date(msg.createdAt) : null;
-                        const time =
-                            date && !isNaN(date.getTime())
-                                ? date.toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                })
-                                : "";
-                        const isOwn =
-                            senderId !== null && String(senderId) === String(currentUserId);
+                {messages.map((msg: Message) => {
+                    const senderId = msg?.sender?.id ?? null;
+                    const date = msg?.createdAt ? new Date(msg.createdAt) : null;
+                    const time =
+                        date && !isNaN(date.getTime())
+                            ? date.toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                            })
+                            : "";
+                    const isOwn =
+                        senderId !== null && String(senderId) === String(currentUserId);
 
-                        const readBy = msg.readBy || [];
-                        let messageStatus: any = "sent";
-                        if (isOwn) {
-                            const otherReaders = readBy.filter((r: any) => String(r.user?.id || r.user?._id) !== String(currentUserId));
-                            if (otherReaders.length > 0) {
-                                messageStatus = "seen";
-                            } else {
-                                messageStatus = msg.status || "sent";
-                            }
+                    const readBy = msg.readBy || [];
+                    let messageStatus: any = "sent";
+                    if (isOwn) {
+                        const otherReaders = readBy.filter((r: any) => String(r.user?.id || r.user?._id) !== String(currentUserId));
+                        if (otherReaders.length > 0) {
+                            messageStatus = "seen";
+                        } else {
+                            messageStatus = msg.status || "sent";
                         }
+                    }
 
-                        return (
-                            <MessageBubble
-                                key={msg.id}
-                                message={{
-                                    id: msg.id,
-                                    text: msg.content,
-                                    fileUrl: msg.fileUrl,
-                                    fileType: msg.fileType,
-                                    fileName: msg.fileName,
-                                    time,
-                                    isOwn,
-                                    messageStatus,
-                                    readBy,
-                                }}
-                            />
-                        );
-                    })}
+                    return (
+                        <MessageBubble
+                            key={msg.id}
+                            message={{
+                                id: msg.id,
+                                text: msg.content,
+                                fileUrl: msg.fileUrl,
+                                fileType: msg.fileType,
+                                fileName: msg.fileName,
+                                time,
+                                isOwn,
+                                messageStatus,
+                                readBy,
+                            }}
+                        />
+                    );
+                })}
 
                 {typingUsers.length > 0 && (
                     <div className="text-[#3b82f6] text-sm mt-3">

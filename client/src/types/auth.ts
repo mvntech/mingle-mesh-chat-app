@@ -1,3 +1,7 @@
+export interface ProtectedRouteProps {
+    children: React.ReactNode;
+}
+
 export interface AuthUser {
     id: string;
     username: string;
@@ -29,3 +33,5 @@ export interface RegisterVariables {
     email: string;
     password: string;
 }
+
+export type AuthSource = 'oauth' | 'credentials';

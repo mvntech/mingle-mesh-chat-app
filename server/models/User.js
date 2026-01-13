@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import sanitizeHtml from "sanitize-html";
 
 const userSchema = new mongoose.Schema(
     {
@@ -11,6 +12,7 @@ const userSchema = new mongoose.Schema(
             lowercase: true,
             minlength: 3,
             maxlength: 20,
+            set: (v) => sanitizeHtml(v, { allowedTags: [], allowedAttributes: {} }),
         },
         email: {
             type: String,
@@ -18,41 +20,19 @@ const userSchema = new mongoose.Schema(
             unique: true,
             trim: true,
             lowercase: true,
-            match: [/^\S+@\S+\.\S+$/, "Please use a valid email address"],
+            match: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, "Please use a valid email address"],
         },
         password: {
             type: String,
             required: false,
             minlength: 6,
         },
-        googleId: {
-            type: String,
-            unique: true,
-            sparse: true,
-        },
-        githubId: {
-            type: String,
-            unique: true,
-            sparse: true,
-        },
-        avatar: {
-            type: String,
-            default: "",
-        },
-        isOnline: {
-            type: Boolean,
-            default: false,
-        },
-        lastSeen: {
-            type: Date,
-            default: Date.now,
-        },
-        favorites: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "Chat",
-            },
-        ],
+        googleId: { type: String, unique: true, sparse: true },
+        githubId: { type: String, unique: true, sparse: true },
+        avatar: { type: String, default: "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767889266/dummy-user_ilqiiw.jpg" },
+        isOnline: { type: Boolean, default: false },
+        lastSeen: { type: Date, default: Date.now },
+        favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "Chat" }],
     },
     {
         timestamps: true,

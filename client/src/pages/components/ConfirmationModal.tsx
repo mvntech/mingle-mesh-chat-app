@@ -24,17 +24,17 @@ export function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, 
                     <button
                         onClick={onClose}
                         disabled={isLoading}
-                        className="px-4 py-2 rounded-xl text-gray-400 hover:text-white hover:bg-[#2a2a35] transition-colors disabled:opacity-50">
+                        className="px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-[#2a2a35] transition-colors disabled:opacity-50">
                         {cancelText}
                     </button>
                     <button
                         onClick={onConfirm}
                         disabled={isLoading}
-                        className="px-4 py-2 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                        className="px-4 py-2 rounded-lg bg-[#3b82f6] hover:bg-[#2563eb] text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                         {isLoading ? (
                             <>
                                 <Loader2 className="w-5 h-5 animate-spin text-white" />
-                                Processing...
+                                Leaving...
                             </>
                         ) : (
                             confirmText

@@ -1,11 +1,8 @@
-import { ApolloClient, InMemoryCache, split, HttpLink } from "@apollo/client";
+import { ApolloClient, InMemoryCache, HttpLink } from "@apollo/client";
 import { setContext } from "@apollo/client/link/context";
-import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
-import { createClient } from "graphql-ws";
-import { getMainDefinition } from "@apollo/client/utilities";
 
 const httpLink = new HttpLink({
-    uri: "http://localhost:5000/graphql",
+    uri: import.meta.env.VITE_API_URL,
 });
 
 const authLink = setContext((_, { headers }) => {
@@ -18,33 +15,32 @@ const authLink = setContext((_, { headers }) => {
     };
 });
 
-const wsLink = new GraphQLWsLink(
-    createClient({
-        url: "ws://localhost:5000/graphql",
-        connectionParams: () => {
-            const token = localStorage.getItem("token");
-            return {
-                authToken: token || "",
-            };
-        },
-    })
-);
-
-const splitLink = split(
-    ({ query }) => {
-        const definition = getMainDefinition(query);
-        return (
-            definition.kind === "OperationDefinition" &&
-            definition.operation === "subscription"
-        );
-    },
-    wsLink,
-    authLink.concat(httpLink)
-);
-
 const client = new ApolloClient({
-    link: splitLink,
-    cache: new InMemoryCache(),
+    link: authLink.concat(httpLink),
+    cache: new InMemoryCache({
+        typePolicies: {
+            Query: {
+                fields: {
+                    getMessages: {
+                        keyArgs: ["chatId"],
+                        merge(existing = [], incoming = [], { readField }) {
+                            const merged = [...incoming];
+                            const incomingIds = new Set(
+                                incoming.map((ref: any) => readField("id", ref))
+                            );
+                            for (const item of existing) {
+                                const id = readField("id", item);
+                                if (!incomingIds.has(id)) {
+                                    merged.push(item);
+                                }
+                            }
+                            return merged;
+                        },
+                    },
+                },
+            },
+        },
+    }),
 });
 
 export default client;

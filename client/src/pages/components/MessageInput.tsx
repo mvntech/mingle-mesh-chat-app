@@ -10,24 +10,19 @@ export function MessageInput({ value, onChange, onSend, disabled = false }: Mess
     const [selectedFile, setSelectedFile] = useState<{ fileUrl: string, fileType: string, fileName: string } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const client = useApolloClient();
-
     const handleSend = () => {
         if (disabled || isUploading) return;
-
         if (value.trim() || selectedFile) {
             onSend(value, selectedFile || undefined);
             setSelectedFile(null);
         }
     };
-
     const handleFileClick = () => {
         fileInputRef.current?.click();
     };
-
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
         try {
             setIsUploading(true);
             const result = await uploadToCloudinary(file, client);
@@ -36,15 +31,14 @@ export function MessageInput({ value, onChange, onSend, disabled = false }: Mess
                 fileType: result.resource_type,
                 fileName: result.original_filename
             });
-        } catch (e) {
-            console.error("Upload failed", e);
+        } catch (error) {
+            console.error("Upload failed", error);
             toast.error("File upload failed. Please try again.");
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
     };
-
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault()
