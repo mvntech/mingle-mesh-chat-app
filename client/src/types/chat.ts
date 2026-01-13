@@ -95,3 +95,13 @@ export interface GetChatsData {
         }>;
     }>;
 }
+
+export interface MingleMeshChatProps {
+    activeNav: string;
+    setActiveNav: (nav: string) => void;
+    selectedConversation: Conversation | null;
+    setSelectedConversation: (conv: Conversation | null) => void;
+    searchQuery: string;
+    setSearchQuery: (query: string) => void;
+    typingUsers: Record<string, string[]>;
+}

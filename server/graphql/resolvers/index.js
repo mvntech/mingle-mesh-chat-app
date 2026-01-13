@@ -27,11 +27,12 @@ const resolvers = {
             if (search && search.length < 2) {
                 throw new GraphQLError("Search term too short", { extensions: { code: 'BAD_USER_INPUT' } });
             }
+            const escapedSearch = search ? search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : "";
             const query = search
                 ? {
                     $or: [
-                        { username: { $regex: search, $options: "i" } },
-                        { email: { $regex: search, $options: "i" } },
+                        { username: { $regex: escapedSearch, $options: "i" } },
+                        { email: { $regex: escapedSearch, $options: "i" } },
                     ],
                     _id: { $ne: user._id },
                 }

@@ -25,7 +25,7 @@ export default defineConfig({
             type: 'image/png'
           },
           {
-            src: '/icon-512 .png',
+            src: '/icon-512.png',
             sizes: '512x512',
             type: 'image/png'
           }
@@ -76,10 +76,6 @@ export default defineConfig({
           }
         ],
         navigateFallbackDenylist: [/^\/socket.io/, /^\/graphql/]
-      },
-      devOptions: {
-        enabled: true,
-        type: 'module',
       },
     })
   ],

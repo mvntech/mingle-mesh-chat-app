@@ -265,11 +265,15 @@ io.on("connection", (socket) => {
     socket.on("disconnect", async () => {
         if (socket.user) {
             setTimeout(async () => {
-                const user = await User.findById(socket.userId);
-                if (user) {
-                    user.isOnline = false;
-                    user.lastSeen = new Date();
-                    await user.save();
+                const activeConnections = await io.in(`user-${socket.userId}`).fetchSockets();
+                if (activeConnections.length === 0) {
+                    const user = await User.findById(socket.userId);
+                    if (user) {
+                        user.isOnline = false;
+                        user.lastSeen = new Date();
+                        await user.save();
+                        io.emit("userStatusChanged", user.toJSON());
+                    }
                 }
             }, 5000);
         }

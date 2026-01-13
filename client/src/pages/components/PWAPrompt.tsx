@@ -11,7 +11,7 @@ export default function PWAPrompt() {
         onRegistered(r: ServiceWorkerRegistration | undefined) {
             console.log('SW Registered: ', r);
         },
-        onRegisterError(error: any) {
+        onRegisterError(error: Error) {
             console.log('SW registration error', error);
         },
     });

@@ -13,20 +13,25 @@ import { GET_CHATS } from "../queries/getChats";
 import { GET_MESSAGES } from "../queries/getMessages";
 import { MARK_AS_DELIVERED } from "../mutations/markAsDelivered";
 import type { GetMeData } from "../types/user";
-import { type Conversation, type GetChatsData } from "../types/chat";
+import type { Conversation, GetChatsData } from "../types/chat";
+import type { MingleMeshChatProps } from "../types/chat";
 
-export function MingleMeshChat() {
-    const [activeNav, setActiveNav] = useState<string>("home");
-    const [selectedConversation, setSelectedConversation] =
-        useState<Conversation | null>(null);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [typingUsers, setTypingUsers] = useState<Record<string, string[]>>({});
+export function MingleMeshChat({
+    activeNav,
+    setActiveNav,
+    selectedConversation,
+    setSelectedConversation,
+    searchQuery,
+    setSearchQuery,
+    typingUsers
+}: MingleMeshChatProps) {
     const { data, loading: chatsLoading } = useQuery<GetChatsData>(GET_CHATS);
     const { data: userData } = useQuery<GetMeData>(GET_ME);
     const { socket } = useSocket();
     const currentUserId: string | null = userData?.me?.id ?? localStorage.getItem("userId");
-    const chats: Conversation[] = data
-        ? data.getChats.map((chat) => {
+    const chats: Conversation[] = useMemo(() => {
+        if (!data) return [];
+        return data.getChats.map((chat) => {
             const other =
                 chat.participants.find((p) => p.id !== currentUserId) ||
                 chat.participants[0];
@@ -62,8 +67,8 @@ export function MingleMeshChat() {
                 messageStatus: chat.messageStatus,
                 unreadCount: chat.unreadCount ?? 0,
             };
-        })
-        : [];
+        });
+    }, [data, currentUserId]);
     const filteredChats = useMemo(() => {
         if (!userData?.me) return chats;
         switch (activeNav) {
@@ -75,27 +80,6 @@ export function MingleMeshChat() {
                 return chats;
         }
     }, [activeNav, chats, userData]);
-    useEffect(() => {
-        if (!socket) return;
-        const handleTyping = ({ chatId, user, isTyping }: { chatId: string, user: { username: string }, isTyping: boolean }) => {
-            setTypingUsers(prev => {
-                const currentTypers = prev[chatId] || [];
-                if (isTyping) {
-                    if (!currentTypers.includes(user.username)) {
-                        return { ...prev, [chatId]: [...currentTypers, user.username] };
-                    }
-                } else {
-                    return { ...prev, [chatId]: currentTypers.filter(u => u !== user.username) };
-                }
-                return prev;
-            });
-        };
-        socket.on("typing", handleTyping);
-        return () => {
-            socket.off("typing", handleTyping);
-            setTypingUsers({});
-        };
-    }, [socket]);
     const totalUnreadCount = chats.reduce((acc, chat) => acc + (chat.unreadCount || 0), 0);
     useEffect(() => {
         if (!socket) return;
@@ -170,6 +154,14 @@ export function MingleMeshChat() {
 
 export function MingleMeshAppWrapper() {
     const client = useApolloClient();
+    const [activeNav, setActiveNav] = useState<string>("home");
+    const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [typingUsers, setTypingUsers] = useState<Record<string, string[]>>({});
+    const selectedChatIdRef = useRef<string | null>(null);
+    useEffect(() => {
+        selectedChatIdRef.current = selectedConversation?.id || null;
+    }, [selectedConversation]);
     const { data: userData } = useQuery<GetMeData>(GET_ME);
     const currentUserId = userData?.me?.id ?? localStorage.getItem("userId");
     const { data } = useQuery<GetChatsData>(GET_CHATS);
@@ -180,10 +172,30 @@ export function MingleMeshAppWrapper() {
         dataRef.current = data ?? null;
     }, [data]);
     useEffect(() => {
+        if (!socket) return;
+        const handleTyping = ({ chatId, user, isTyping }: { chatId: string, user: { username: string }, isTyping: boolean }) => {
+            setTypingUsers(prev => {
+                const currentTypers = prev[chatId] || [];
+                if (isTyping) {
+                    if (!currentTypers.includes(user.username)) {
+                        return { ...prev, [chatId]: [...currentTypers, user.username] };
+                    }
+                } else {
+                    return { ...prev, [chatId]: currentTypers.filter(u => u !== user.username) };
+                }
+                return prev;
+            });
+        };
+        socket.on("typing", handleTyping);
+        return () => {
+            socket.off("typing", handleTyping);
+            setTypingUsers({});
+        };
+    }, [socket]);
+    useEffect(() => {
         if (!currentUserId || !socket) return;
         const onNewMessage = (payload: { chatId: string; message: any }) => {
             const { chatId, message: rawMessage } = payload;
-
             const normalizeUser = (u: any) => u ? ({
                 ...u,
                 id: String(u.id || u._id || ''),
@@ -214,10 +226,16 @@ export function MingleMeshAppWrapper() {
                         id: chatIdent,
                         fields: {
                             unreadCount(prev = 0) {
-                                return message.sender?.id !== currentUserId ? prev + 1 : prev;
+                                if (message.sender?.id !== currentUserId && chatId !== selectedChatIdRef.current) {
+                                    return prev + 1;
+                                }
+                                return prev;
                             },
                             lastMessage() {
                                 return message;
+                            },
+                            messageStatus() {
+                                return message.sender?.id === currentUserId ? "sent" : "delivered";
                             }
                         }
                     })
@@ -239,7 +257,9 @@ export function MingleMeshAppWrapper() {
                             });
                         }
                     }
-                } catch (error) { }
+                } catch (error) {
+                    console.error("Cache update error:", error);
+                }
             } catch (error) {
                 console.error("Cache update error:", error);
             }
@@ -373,9 +393,7 @@ export function MingleMeshAppWrapper() {
                             client.cache.modify({
                                 id: chatIdent,
                                 fields: {
-                                    messageStatus() {
-                                        return "read";
-                                    },
+                                    messageStatus() { return "read"; },
                                 },
                             });
                         }
@@ -436,5 +454,15 @@ export function MingleMeshAppWrapper() {
         };
     }, [data, currentUserId, socket]);
 
-    return <MingleMeshChat />;
+    return (
+        <MingleMeshChat
+            activeNav={activeNav}
+            setActiveNav={setActiveNav}
+            selectedConversation={selectedConversation}
+            setSelectedConversation={setSelectedConversation}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            typingUsers={typingUsers}
+        />
+    );
 }

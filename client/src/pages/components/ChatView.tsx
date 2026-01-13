@@ -111,17 +111,6 @@ export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat
         unreadMessages.forEach((msg: any) => {
             markedRef.current[msg.id] = true;
             markAsRead({ variables: { messageId: msg.id } })
-                .then(() => {
-                    const chatIdent = client.cache.identify({ __typename: "Chat", id: conversation.id });
-                    if (chatIdent) {
-                        client.cache.modify({
-                            id: chatIdent,
-                            fields: {
-                                unreadCount(prev = 0) { return Math.max(0, prev - 1); }
-                            }
-                        });
-                    }
-                })
                 .catch((error) => {
                     console.error("markAsRead error:", error);
                     markedRef.current[msg.id] = false;
