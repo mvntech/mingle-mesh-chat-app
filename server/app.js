@@ -26,36 +26,30 @@ configurePassport();
 
 const app = express();
 const httpServer = createServer(app);
-const isProd = process.env.NODE_ENV === "production";
-
 const pubsub = new PubSub();
 
-const MONGODB_URI = process.env.MONGODB_URI;
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-const SERVER_URL = process.env.SERVER_URL || "http://localhost:5000";
-const allowedOrigins = [
-    CLIENT_URL,
-    SERVER_URL,
-    MONGODB_URI,
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5000",
-    "http://localhost:5173",
-    "http://localhost:5000"
-];
+const CLIENT_URL = process.env.CLIENT_URL;
+const SERVER_URL = process.env.SERVER_URL;
+const allowedOrigins = [CLIENT_URL, SERVER_URL];
 
 app.use(
     helmet({
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
-                scriptSrc: ["'self'"],
-                styleSrc: ["'self'"],
+                scriptSrc: ["'self'", "'unsafe-inline'"],
+                styleSrc: ["'self'", "'unsafe-inline'"],
                 imgSrc: ["'self'", "data:", "https:"],
-                connectSrc: ["'self'", "ws:", "wss:", "http:", "https:"],
+                connectSrc: ["'self'", "wss:", "https:"],
+                fontSrc: ["'self'", "data:", "https:"],
+                objectSrc: ["'none'"],
+                baseUri: ["'self'"],
+                frameAncestors: ["'none'"]
             },
         },
-        crossOriginEmbedderPolicy: isProd,
+        crossOriginEmbedderPolicy: false,
         crossOriginResourcePolicy: { policy: "cross-origin" },
+        crossOriginOpenerPolicy: { policy: "same-origin" },
     })
 );
 
