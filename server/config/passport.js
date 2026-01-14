@@ -9,7 +9,7 @@ const configurePassport = () => {
             {
                 clientID: process.env.GOOGLE_CLIENT_ID,
                 clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-                callbackURL: process.env.GOOGLE_CLIENT_CALLBACK_URL,
+                callbackURL: process.env.GOOGLE_CALLBACK_URL,
             },
             async (accessToken, refreshToken, profile, done) => {
                 const { id, displayName, emails, photos } = profile;
@@ -52,7 +52,7 @@ const configurePassport = () => {
             {
                 clientID: process.env.GITHUB_CLIENT_ID,
                 clientSecret: process.env.GITHUB_CLIENT_SECRET,
-                callbackURL: process.env.GITHUB_CLIENT_CALLBACK_URL,
+                callbackURL: process.env.GITHUB_CALLBACK_URL,
             },
             async (accessToken, refreshToken, profile, done) => {
                 const { id, username, emails, photos } = profile;
