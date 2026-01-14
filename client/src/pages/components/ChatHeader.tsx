@@ -74,7 +74,7 @@ export function ChatHeader({ conversation, onLeaveChat }: ChatHeaderProps) {
                 <div className="relative flex-shrink-0">
                     <div className="w-12 h-12 rounded-full overflow-hidden">
                         <img
-                            src={conversation.avatar || "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767889266/dummy-user_ilqiiw.jpg"}
+                            src={conversation.avatar || "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1768382070/dummy-avatar_xq8or9.jpg"}
                             alt={conversation.name}
                             className="w-full h-full object-cover"
                         />

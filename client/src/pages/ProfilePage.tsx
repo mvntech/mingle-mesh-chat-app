@@ -66,7 +66,7 @@ export function ProfilePage({ user }: ProfilePageProps) {
                     <div className="relative">
                         <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-[#12121a] bg-[#111116]">
                             <img
-                                src={avatar || "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767889266/dummy-user_ilqiiw.jpg"}
+                                src={avatar || "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1768382070/dummy-avatar_xq8or9.jpg"}
                                 alt="Profile"
                                 className="w-full h-full object-cover"
                             />

@@ -72,7 +72,7 @@ const configurePassport = () => {
                         githubId: id,
                         username: username.toLowerCase(),
                         email,
-                        avatar: photos[0]?.value || "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767889266/dummy-user_ilqiiw.jpg",
+                        avatar: photos[0]?.value || "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1768382070/dummy-avatar_xq8or9.jpg",
                     });
                     done(null, user);
                 } catch (error) {

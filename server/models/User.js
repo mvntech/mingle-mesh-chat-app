@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema(
         },
         googleId: { type: String, unique: true, sparse: true },
         githubId: { type: String, unique: true, sparse: true },
-        avatar: { type: String, default: "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1767889266/dummy-user_ilqiiw.jpg" },
+        avatar: { type: String, default: "https://res.cloudinary.com/dgm2hjnfx/image/upload/v1768382070/dummy-avatar_xq8or9.jpg" },
         isOnline: { type: Boolean, default: false },
         lastSeen: { type: Date, default: Date.now },
         favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "Chat" }],
