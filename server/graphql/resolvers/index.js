@@ -22,7 +22,7 @@ const resolvers = {
         },
 
         getUsers: async (parent, args, { user }) => {
-            if (!user) throw new AuthenticationError("Not authenticated");
+            if (!user) throw new GraphQLError("Not authenticated", { extensions: { code: 'UNAUTHENTICATED' } });
             const { search, limit = 20, offset = 0 } = args;
             if (search && search.length < 2) {
                 throw new GraphQLError("Search term too short", { extensions: { code: 'BAD_USER_INPUT' } });
@@ -42,20 +42,32 @@ const resolvers = {
 
         getChats: async (parent, args, { user }) => {
             if (!user) throw new GraphQLError("Not authenticated", { extensions: { code: 'UNAUTHENTICATED' } });
+            const { limit = 50, offset = 0 } = args;
             const chats = await Chat.find({
                 participants: { $in: [user._id] },
                 deletedBy: { $ne: user._id },
             })
-                .populate("participants")
+                .select('name isGroupChat participants lastMessage groupAdmin updatedAt')
                 .populate({
-                    path: "lastMessage",
+                    path: 'participants',
+                    select: 'id username avatar isOnline'
+                })
+                .populate({
+                    path: 'lastMessage',
+                    select: 'content fileType fileUrl fileName createdAt sender readBy',
                     populate: [
-                        { path: "sender" },
-                        { path: "readBy.user" }
+                        { path: 'sender', select: 'id username avatar' },
+                        { path: 'readBy.user', select: 'id' }
                     ]
                 })
-                .populate("groupAdmin")
-                .sort({ updatedAt: -1 });
+                .populate({
+                    path: 'groupAdmin',
+                    select: 'id username avatar'
+                })
+                .sort({ updatedAt: -1 })
+                .limit(limit)
+                .skip(offset)
+                .lean();
             const chatIds = chats.map(c => c._id);
             const unreadCounts = await Message.aggregate([
                 {
@@ -72,10 +84,9 @@ const resolvers = {
                     }
                 }
             ]);
-            const countMap = {};
-            unreadCounts.forEach(c => {
-                countMap[c._id.toString()] = c.count;
-            });
+            const countMap = Object.fromEntries(
+                unreadCounts.map(c => [c._id.toString(), c.count])
+            );
             chats.forEach(chat => {
                 chat._unreadCount = countMap[chat._id.toString()] || 0;
             });

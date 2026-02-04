@@ -113,7 +113,7 @@ export function ChatHeader({ conversation, onLeaveChat }: ChatHeaderProps) {
                     setIsModalOpen(false);
                 }}
                 title="Leave Chat"
-                message="Are you sure you want to leave this chat? You will no longer be able to see future messages, but the message history will remain for other participants."
+                message="You will stop receiving new messages, but the chat history will remain visible to other participants."
                 confirmText="Leave Chat"
                 isLoading={loading}
             />

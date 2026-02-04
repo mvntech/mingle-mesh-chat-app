@@ -1,8 +1,36 @@
-import { Check, CheckCheck, Star } from "lucide-react";
+import { Check, CheckCheck, Star, Camera, Video, File } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { ConversationItemProps } from "../../types/chat";
 
 export function ConversationItem({ conversation, isSelected, onClick, isTyping, isFavorite }: ConversationItemProps) {
+    const renderLastMessage = () => {
+        if (isTyping) return "Typing...";
+        if (!conversation.lastMessage) return "Message to start chatting";
+
+        switch (conversation.messageType) {
+            case 'image':
+                return (
+                    <span className="flex items-center gap-1.5">
+                        <Camera className="w-3.5 h-3.5" /> Photo
+                    </span>
+                );
+            case 'video':
+                return (
+                    <span className="flex items-center gap-1.5">
+                        <Video className="w-3.5 h-3.5" /> Video
+                    </span>
+                );
+            case 'file':
+                return (
+                    <span className="flex items-center gap-1.5">
+                        <File className="w-3.5 h-3.5" /> File
+                    </span>
+                );
+            default:
+                return conversation.lastMessage;
+        }
+    };
+
     return (
         <button
             onClick={onClick}
@@ -41,7 +69,7 @@ export function ConversationItem({ conversation, isSelected, onClick, isTyping, 
                 </div>
                 <div className="flex items-center justify-between mt-0.5">
                     <span className={cn("text-sm truncate", isTyping ? "text-[#3b82f6]" : "text-[#6b7280]")}>
-                        {isTyping ? "Typing..." : conversation.lastMessage || "Message to start chatting"}
+                        {renderLastMessage()}
                     </span>
                     <div className="flex items-center flex-shrink-0">
                         {(conversation.unreadCount ?? 0) > 0 ? (

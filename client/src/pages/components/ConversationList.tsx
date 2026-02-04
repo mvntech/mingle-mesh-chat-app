@@ -86,7 +86,7 @@ export const ConversationList = memo(function ConversationList({ contacts, selec
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-2 py-2">
+            <div className="flex-1 overflow-y-auto">
                 {isSearching ? (
                     <div className="space-y-1">
                         <h3 className="text-[#6b7280] text-xs font-semibold uppercase tracking-wider px-4 py-2">

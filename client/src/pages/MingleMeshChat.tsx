@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useApolloClient } from "@apollo/client/react";
 import toast from "react-hot-toast";
-import { Camera, Video, File, MessageSquareText } from "lucide-react";
+import { MessageSquareText } from "lucide-react";
 import { useSocket } from "../context/SocketContext";
 import { cn } from "../lib/utils";
 import { Sidebar } from "./components/Sidebar";
@@ -35,28 +35,31 @@ export function MingleMeshChat({
             const other =
                 chat.participants.find((p) => p.id !== currentUserId) ||
                 chat.participants[0];
+
+            let messageType: 'text' | 'image' | 'video' | 'file' | 'empty' = 'empty';
+            let messageContent = '';
+
+            if (chat.lastMessage?.content) {
+                messageType = 'text';
+                messageContent = chat.lastMessage.content;
+            } else if (chat.lastMessage?.fileType === "image") {
+                messageType = 'image';
+                messageContent = 'Photo';
+            } else if (chat.lastMessage?.fileType === "video") {
+                messageType = 'video';
+                messageContent = 'Video';
+            } else if (chat.lastMessage?.fileUrl) {
+                messageType = 'file';
+                messageContent = 'File';
+            }
+
             return {
                 id: chat.id,
                 name: chat.name || other.username,
                 avatar: other.avatar ?? null,
                 isOnline: other.isOnline,
-                lastMessage: chat.lastMessage?.content ? (
-                    chat.lastMessage.content
-                ) : chat.lastMessage?.fileType === "image" ? (
-                    <span className="flex items-center gap-1.5">
-                        <Camera className="w-3.5 h-3.5" /> Photo
-                    </span>
-                ) : chat.lastMessage?.fileType === "video" ? (
-                    <span className="flex items-center gap-1.5">
-                        <Video className="w-3.5 h-3.5" /> Video
-                    </span>
-                ) : chat.lastMessage?.fileUrl ? (
-                    <span className="flex items-center gap-1.5">
-                        <File className="w-3.5 h-3.5" /> File
-                    </span>
-                ) : (
-                    ""
-                ),
+                lastMessage: messageContent,
+                messageType: messageType,
                 time: chat.lastMessage
                     ? new Date(chat.lastMessage.createdAt).toLocaleTimeString("en-US", {
                         hour: "numeric",
@@ -84,7 +87,7 @@ export function MingleMeshChat({
     useEffect(() => {
         if (!socket) return;
         const onConnect = () => toast.dismiss("connection");
-        const onDisconnect = () => toast.error("Connection lost. Reconnecting...", { id: "connection" });
+        const onDisconnect = () => toast.error("You're offline", { id: "connection" });
         const onConnectError = () => toast.error("Connection error. Reconnecting...", { id: "connection" });
         socket.on("connect", onConnect);
         socket.on("disconnect", onDisconnect);
@@ -97,7 +100,7 @@ export function MingleMeshChat({
     }, [socket]);
 
     return (
-        <div className="flex flex-col md:flex-row h-screen bg-[#0a0a0f] overflow-hidden font-sans relative">
+        <div className="flex flex-col md:flex-row h-dvh bg-[#0a0a0f] overflow-hidden font-sans relative">
             <div className={cn(
                 selectedConversation && "hidden md:block"
             )}>
@@ -127,7 +130,7 @@ export function MingleMeshChat({
             </div>
 
             <div className={cn(
-                "flex-1 flex flex-col min-w-0 transition-all duration-300 md:pb-0",
+                "flex-1 flex flex-col min-w-0 min-h-0 transition-all duration-300 md:pb-0",
                 !selectedConversation && activeNav !== "settings" ? "hidden md:flex pb-20" : "flex pb-0"
             )}>
                 {activeNav === "settings" ? (

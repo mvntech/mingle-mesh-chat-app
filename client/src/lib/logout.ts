@@ -13,7 +13,6 @@ export default function useLogout() {
             localStorage.removeItem("userId");
             await client.clearStore();
             navigate("/login", { replace: true });
-
             toast.success("Logged out successfully!");
         } catch (error) {
             console.error("Logout failed:", error);

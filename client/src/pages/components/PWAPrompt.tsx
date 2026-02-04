@@ -15,27 +15,35 @@ export default function PWAPrompt() {
             console.log('SW registration error', error);
         },
     });
+
     useEffect(() => {
         if (offlineReady) {
-            toast.success('App ready to work offline!', {
+            toast.success('App ready to work offline', {
                 id: 'pwa-offline-ready',
             });
             setOfflineReady(false);
         }
     }, [offlineReady, setOfflineReady]);
+
     useEffect(() => {
         if (needRefresh) {
             toast(
                 (t) => (
-                    <div className="flex flex-col gap-2 bg-[#12121A] p-2">
-                        <span className="font-medium text-white text-xl">New version available!</span>
+                    <div className="min-w-[280px] p-1">
+                        <div className="space-y-1.5 mb-4">
+                            <h3 className="text-white font-medium text-base tracking-tight">New update available</h3>
+                            <p className="text-[#6b7280] text-[13px] leading-relaxed">
+                                A fresh version is ready. Update to apply the latest improvements.
+                            </p>
+                        </div>
+
                         <div className="flex gap-2">
                             <button
                                 onClick={() => {
                                     updateServiceWorker(true);
                                     toast.dismiss(t.id);
                                 }}
-                                className="px-4 py-2 rounded-lg bg-[#3b82f6] hover:bg-[#2563eb] text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="flex-1 h-10 flex items-center justify-center bg-[#3b82f6] hover:bg-[#2563eb] text-white text-sm font-medium rounded-lg transition-colors"
                             >
                                 Update
                             </button>
@@ -44,9 +52,9 @@ export default function PWAPrompt() {
                                     setNeedRefresh(false);
                                     toast.dismiss(t.id);
                                 }}
-                                className="px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-[#2a2a35] transition-colors disabled:opacity-50"
+                                className="flex-1 h-10 flex items-center justify-center bg-[#2a2a35] hover:bg-[#252533] text-white text-sm font-medium rounded-lg transition-colors border border-[#1f1f2e]"
                             >
-                                Close
+                                Dismiss
                             </button>
                         </div>
                     </div>
@@ -57,11 +65,13 @@ export default function PWAPrompt() {
                     style: {
                         background: '#12121A',
                         color: '#FFFFFF',
-                        border: '1px solid #2a2a35',
+                        border: '1px solid #1f1f2e',
+                        borderRadius: '14px',
                     }
                 }
             );
         }
     }, [needRefresh, setNeedRefresh, updateServiceWorker]);
+
     return null;
 }

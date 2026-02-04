@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:ci": "npm run type-check && npm run build",
+    "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -39,6 +41,7 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
+    "@sentry/react": "^10.38.0",
     "@tailwindcss/vite": "^4.1.18",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",

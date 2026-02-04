@@ -53,6 +53,8 @@ chatSchema.methods.setUnreadCount = function (value) {
 };
 
 chatSchema.index({ participants: 1, updatedAt: -1 });
+chatSchema.index({ participants: 1, updatedAt: -1, deletedBy: 1 });
+
 
 const Chat = mongoose.model("Chat", chatSchema);
 

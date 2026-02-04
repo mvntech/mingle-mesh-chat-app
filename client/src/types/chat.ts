@@ -4,6 +4,7 @@ export interface Conversation {
     avatar: string | null;
     isOnline: boolean;
     lastMessage?: React.ReactNode;
+    messageType?: 'text' | 'image' | 'video' | 'file' | 'empty';
     time?: string | null;
     unreadCount?: number;
     messageStatus?: "sent" | "delivered" | "read";

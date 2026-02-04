@@ -120,7 +120,7 @@ export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat
 
     if (loading && !data)
         return (
-            <div className="flex-1 flex flex-col bg-[#0a0a0f] my-0 md:my-3 mr-0 md:mr-3 md:rounded-2xl overflow-hidden">
+            <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0f] my-0 md:my-3 mr-0 md:mr-3 md:rounded-2xl overflow-hidden">
                 <ChatHeader conversation={conversation} onLeaveChat={onLeaveChat} />
 
                 <div className="flex-1 p-6 space-y-4">
@@ -152,7 +152,7 @@ export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat
 
     if (error) {
         return (
-            <div className="flex-1 flex flex-col bg-[#0a0a0f] my-0 md:my-3 mr-0 md:mr-3 md:rounded-2xl overflow-hidden">
+            <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0f] my-0 md:my-3 mr-0 md:mr-3 md:rounded-2xl overflow-hidden">
                 <ChatHeader conversation={conversation} onLeaveChat={onLeaveChat} />
                 <div className="flex-1 flex flex-col items-center justify-center text-red-400">
                     <p className="font-medium">Failed to load messages</p>
@@ -169,10 +169,10 @@ export function ChatView({ conversation, currentUserId, typingUsers, onLeaveChat
     }
 
     return (
-        <div className="flex-1 flex flex-col bg-[#0a0a0f] my-0 md:my-3 mr-0 md:mr-3 md:rounded-2xl overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0f] my-0 md:my-3 mr-0 md:mr-3 md:rounded-2xl overflow-hidden">
             <ChatHeader conversation={conversation} onLeaveChat={onLeaveChat} />
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-2 scrollbar-thin scrollbar-thumb-[#1f1f2e]">
+            <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain p-6 space-y-2 scrollbar-thin scrollbar-thumb-[#1f1f2e]">
                 {data?.getMessages && data.getMessages.length === 0 && (
                     <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b7280]">
                         <p>No messages yet</p>

@@ -1,4 +1,13 @@
+import Sentry from "./config/sentry.js";
+import { initSentry } from "./config/sentry.js";
+import { validateEnvironment } from "./config/validateEnv.js";
+import "dotenv/config";
+
+initSentry();
+validateEnvironment();
+
 import express from "express";
+import mongoose from "mongoose";
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
 import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
@@ -7,11 +16,10 @@ import { makeExecutableSchema } from "@graphql-tools/schema";
 import { PubSub } from "graphql-subscriptions";
 import { Server } from "socket.io";
 import { WebSocketServer } from "ws";
-import { useServer } from "graphql-ws/use/ws";
+import { useServer } from "graphql-ws/lib/use/ws";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import passport from "passport";
 import sanitizeHtml from "sanitize-html";
@@ -20,13 +28,15 @@ import { typeDefs, resolvers } from "./graphql/schema.js";
 import User from "./models/User.js";
 import Chat from "./models/Chat.js";
 import configurePassport from "./config/passport.js";
+import { healthCheck } from "./controllers/health.js";
 
-dotenv.config();
 configurePassport();
 
 const app = express();
 const httpServer = createServer(app);
 const pubsub = new PubSub();
+
+app.get('/health', healthCheck);
 
 const CLIENT_URL = process.env.CLIENT_URL;
 const SERVER_URL = process.env.SERVER_URL;
@@ -37,21 +47,44 @@ app.use(
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
-                scriptSrc: ["'self'", "'unsafe-inline'"],
-                styleSrc: ["'self'", "'unsafe-inline'"],
-                imgSrc: ["'self'", "data:", "https:"],
-                connectSrc: ["'self'", "wss:", "https:"],
-                fontSrc: ["'self'", "data:", "https:"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'"],
+                imgSrc: [
+                    "'self'",
+                    "data:",
+                    "https://res.cloudinary.com",
+                ],
+                connectSrc: [
+                    "'self'",
+                    CLIENT_URL,
+                    SERVER_URL,
+                    "wss:" + (SERVER_URL ? SERVER_URL.replace('https:', '').replace('http:', '') : '//localhost:5000'),
+                ],
+                fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
                 objectSrc: ["'none'"],
                 baseUri: ["'self'"],
-                frameAncestors: ["'none'"]
+                frameAncestors: ["'none'"],
+                upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
             },
+        },
+        strictTransportSecurity: {
+            maxAge: 31536000,
+            includeSubDomains: true,
+            preload: true,
         },
         crossOriginEmbedderPolicy: false,
         crossOriginResourcePolicy: { policy: "cross-origin" },
         crossOriginOpenerPolicy: { policy: "same-origin" },
     })
 );
+
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
 
 app.use(passport.initialize());
 
@@ -107,6 +140,44 @@ const io = new Server(httpServer, {
     pingInterval: 25000,
     pingTimeout: 60000,
 });
+
+const disconnectTimeouts = new Map();
+
+const socketEventLimiter = new Map();
+
+function checkSocketRateLimit(socketId, eventName, maxEvents = 10, windowMs = 1000) {
+    const key = `${socketId}:${eventName}`;
+    const now = Date.now();
+
+    if (!socketEventLimiter.has(key)) {
+        socketEventLimiter.set(key, { count: 1, resetTime: now + windowMs });
+        return true;
+    }
+
+    const limiter = socketEventLimiter.get(key);
+
+    if (now > limiter.resetTime) {
+        limiter.count = 1;
+        limiter.resetTime = now + windowMs;
+        return true;
+    }
+
+    if (limiter.count >= maxEvents) {
+        return false;
+    }
+
+    limiter.count++;
+    return true;
+}
+
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, limiter] of socketEventLimiter.entries()) {
+        if (now > limiter.resetTime + 60000) {
+            socketEventLimiter.delete(key);
+        }
+    }
+}, 60000);
 
 const serverCleanup = useServer(
     {
@@ -221,6 +292,13 @@ io.use(async (socket, next) => {
 
 io.on("connection", (socket) => {
     socket.join(`user-${socket.userId}`);
+
+    const existingTimeout = disconnectTimeouts.get(socket.userId);
+    if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        disconnectTimeouts.delete(socket.userId);
+    }
+
     socket.on("join-chats", async (chatIds) => {
         if (!Array.isArray(chatIds)) return;
         try {
@@ -240,6 +318,11 @@ io.on("connection", (socket) => {
         socket.leave(`chat-${chatId}`);
     });
     socket.on("typing", async ({ chatId, isTyping }) => {
+        if (!checkSocketRateLimit(socket.id, 'typing', 5, 2000)) {
+            socket.emit('error', { message: 'Rate limit exceeded for typing events' });
+            return;
+        }
+
         try {
             const chat = await Chat.findOne({
                 _id: chatId,
@@ -258,7 +341,7 @@ io.on("connection", (socket) => {
     });
     socket.on("disconnect", async () => {
         if (socket.user) {
-            setTimeout(async () => {
+            const timeoutId = setTimeout(async () => {
                 const activeConnections = await io.in(`user-${socket.userId}`).fetchSockets();
                 if (activeConnections.length === 0) {
                     const user = await User.findById(socket.userId);
@@ -269,10 +352,15 @@ io.on("connection", (socket) => {
                         io.emit("userStatusChanged", user.toJSON());
                     }
                 }
+                disconnectTimeouts.delete(socket.userId);
             }, 5000);
+
+            disconnectTimeouts.set(socket.userId, timeoutId);
         }
     });
 });
+
+Sentry.setupExpressErrorHandler(app);
 
 const PORT = process.env.PORT || 5000;
 
@@ -283,5 +371,27 @@ httpServer.listen(PORT, () => {
 
 httpServer.on("error:", (error) => {
     console.error("HTTP Server Error: ", error);
+    Sentry.captureException(error);
     process.exit(1);
+});
+
+let isShuttingDown = false;
+
+process.on('SIGTERM', async () => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+
+    console.log('Received SIGTERM, starting graceful shutdown...');
+
+    httpServer.close(async () => {
+        console.log('HTTP server closed');
+        await mongoose.connection.close();
+        console.log('MongoDB connection closed');
+        process.exit(0);
+    });
+
+    setTimeout(() => {
+        console.error('Forced shutdown after timeout');
+        process.exit(1);
+    }, 30000);
 });
